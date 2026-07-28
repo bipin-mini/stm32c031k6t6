@@ -1,134 +1,242 @@
-#![allow(dead_code)]
+//! # Quadrature Encoder Driver
+//!
+//! Deterministic software quadrature decoder for STM32C031.
+//!
+//! ## Overview
+//!
+//! This module implements a high-speed incremental quadrature encoder
+//! decoder using a Gray-code lookup table.
+//!
+//! The decoder is intended to be called whenever either encoder input
+//! changes, typically from the EXTI interrupt servicing encoder channels
+//! A and B.
+//!
+//! The implementation features:
+//!
+//! - No conditional branches
+//! - Constant execution path
+//! - No dynamic allocation
+//! - PAC-only implementation (no HAL)
+//! - Suitable for RTIC interrupt context
+//!
+//! ## Pin Assignment
+//!
+//! The decoder assumes the encoder inputs are connected as follows:
+//!
+//! ```text
+//! PA0 -> Encoder Channel A (Bit 0)
+//! PA1 -> Encoder Channel B (Bit 1)
+//! ```
+//!
+//! The optional encoder index (Z) input is not processed by this module
+//! and should be handled separately by the application if required.
+//!
+//! ## Operating Principle
+//!
+//! The current quadrature state is formed from the two encoder inputs:
+//!
+//! ```text
+//! PA1 PA0
+//! --------
+//!  0   0   -> 0
+//!  0   1   -> 1
+//!  1   0   -> 2
+//!  1   1   -> 3
+//! ```
+//!
+//! The previous and current states form a 4-bit lookup index:
+//!
+//! ```text
+//! index = (previous << 2) | current
+//! ```
+//!
+//! The lookup table returns:
+//!
+//! * +1 : Forward transition
+//! * -1 : Reverse transition
+//! *  0 : No movement or invalid transition
+//!
+//! > **Note:** The sign convention (+1/-1) depends on the assignment of
+//! > encoder channels A and B. Swapping the A and B inputs reverses the
+//! > reported direction.
+//!
+//! Valid quadrature transitions are:
+//!
+//! ```text
+//! Forward:
+//! 00 -> 10 -> 11 -> 01 -> 00
+//!
+//! Reverse:
+//! 00 -> 01 -> 11 -> 10 -> 00
+//! ```
+//!
+//! Invalid transitions caused by contact bounce, electrical noise, or
+//! missed edges are automatically rejected by the lookup table.
+//!
+//! During construction, the decoder samples the current quadrature state
+//! so that counting begins from the actual shaft position without
+//! generating a false transition after startup.
+//!
+//! ## X4 Decoding
+//!
+//! This decoder performs true X4 quadrature decoding when the application
+//! calls [`Encoder::update()`] on every rising and falling edge of both
+//! encoder channels.
+//!
+//! On STM32C031 this is typically achieved by configuring EXTI on both
+//! encoder inputs for both rising and falling edge detection.
+//!
+//! ## Timing
+//!
+//! Each call to [`Encoder::update()`] performs:
+//!
+//! * One GPIO input register read
+//! * One bit mask
+//! * One lookup-table access
+//! * One state update
+//!
+//! The implementation contains:
+//!
+//! * No conditional branches
+//! * No loops
+//! * No multiplication or division
+//! * No heap allocation
+//!
+//! The instruction path is constant for every invocation, making the
+//! decoder well suited for interrupt-driven applications.
+//!
+//! Typical execution time on STM32C031 running at 48 MHz is well below
+//! 1 µs.
+//!
+//! ## Usage
+//!
+//! During initialization:
+//!
+//! ```ignore
+//! let mut encoder = Encoder::new(gpioa);
+//! ```
+//!
+//! Whenever either encoder input changes (typically from the EXTI
+//! interrupt):
+//!
+//! ```ignore
+//! let delta = encoder.update(gpioa);
+//!
+//! if delta != 0 {
+//!     position += delta as i32;
+//! }
+//! ```
+//!
+//! ## Thread Safety
+//!
+//! The driver contains mutable state (`prev`) and therefore must be owned
+//! by exactly one execution context.
+//!
+//! In an RTIC application this is typically:
+//!
+//! * A local resource of the EXTI task
+//!
+//! so no locking or synchronization is required.
+//!
+//! ## Design Goals
+//!
+//! * Deterministic execution behaviour
+//! * Minimal interrupt latency
+//! * Suitable for high-speed incremental encoders
+//! * Minimal RAM usage
+//! * PAC-only implementation
+//! * Production-quality firmware
 
-use stm32c0::stm32c031::{EXTI, GPIOA};
+use stm32c0::stm32c031::gpioa;
 
-/// ---------------------------------------------------------------------------
-/// Quadrature Lookup Table (LUT)
-/// ---------------------------------------------------------------------------
-///
-/// Encodes all valid transitions between previous and current AB states.
-///
-/// Index:
-/// - index = (prev_state << 2) | curr_state
-///
-/// Bit layout:
-/// - bit0 = A (PA0)
-/// - bit1 = B (PA1)
-///
-/// Output:
-/// - +1 → forward step
-/// - -1 → reverse step
-/// -  0 → no movement or invalid transition (ignored)
-///
-/// ---------------------------------------------------------------------------
-/// Design Property
-/// ---------------------------------------------------------------------------
-///
-/// The LUT fully replaces conditional logic:
-/// - No branching
-/// - Constant-time decoding
-/// - Deterministic execution on Cortex-M0+
-const LUT: [i8; 16] = [0, 1, -1, 0, -1, 0, 0, 1, 1, 0, 0, -1, 0, -1, 1, 0];
+/// Encoder input bit mask (PA0 = Channel A, PA1 = Channel B).
+const ENC_MASK: u32 = 0x03;
 
-/// ---------------------------------------------------------------------------
-/// ISR STATE
-/// ---------------------------------------------------------------------------
+/// Quadrature transition lookup table.
 ///
-/// Stored in static memory for zero-stack ISR execution.
-static mut PREV_STATE: u8 = 0;
-static mut COUNT: i32 = 0;
-
-/// ---------------------------------------------------------------------------
-/// HOTPATH POINTERS (FIXED FOR STM32C0 PAC v0.16.0)
-/// ---------------------------------------------------------------------------
+/// Lookup index:
 ///
-/// These pointers reference the actual register blocks.
-/// No casting between PAC wrapper types is performed.
+/// ```text
+/// (previous_state << 2) | current_state
+/// ```
 ///
-/// This avoids:
-/// - E0606 invalid casts
-/// - E0308 mismatched peripheral types
+/// Returned value:
 ///
-/// Performance goal:
-/// - Eliminate repeated ptr() resolution inside ISR
-type GpioaRb = stm32c0::stm32c031::gpioa::RegisterBlock;
-type ExtiRb = stm32c0::stm32c031::exti::RegisterBlock;
-
-static mut GPIOA_REF: *const GpioaRb = core::ptr::null();
-static mut EXTI_REF: *const ExtiRb = core::ptr::null();
-
-/// ---------------------------------------------------------------------------
-/// Initialization
-/// ---------------------------------------------------------------------------
+/// | Value | Meaning |
+/// |------:|---------|
+/// |  +1   | Forward transition |
+/// |  -1   | Reverse transition |
+/// |   0   | Invalid transition or no movement |
 ///
-/// Must be called before enabling interrupts.
-pub fn init() {
-    unsafe {
-        let gpioa = &*GPIOA::ptr();
+/// Valid transitions:
+///
+/// ```text
+/// Forward:
+/// 00 -> 10 -> 11 -> 01 -> 00
+///
+/// Reverse:
+/// 00 -> 01 -> 11 -> 10 -> 00
+/// ```
+const LUT: [i8; 16] = [0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0];
 
-        // Store raw register block pointers
-        GPIOA_REF = GPIOA::ptr();
-        EXTI_REF = EXTI::ptr();
+/// Software quadrature decoder.
+///
+/// The decoder stores only the previous quadrature state and uses a
+/// Gray-code lookup table to determine the direction of movement.
+///
+/// The implementation is deterministic, contains no conditional
+/// branches, and is intended for execution directly from an interrupt
+/// service routine.
+pub struct Encoder {
+    /// Previous quadrature state.
+    prev: u8,
+}
 
-        let idr = gpioa.idr().read().bits();
-
-        PREV_STATE = ((idr & 1) | (((idr >> 1) & 1) << 1)) as u8;
+impl Encoder {
+    /// Creates a new quadrature decoder.
+    ///
+    /// The constructor samples the current quadrature state and stores it
+    /// so that decoding begins without generating a false count after
+    /// startup.
+    ///
+    /// # Arguments
+    ///
+    /// * `gpioa` - GPIOA peripheral register block.
+    pub fn new(gpioa: &gpioa::RegisterBlock) -> Self {
+        let prev = (gpioa.idr().read().bits() & ENC_MASK) as u8;
+        Self { prev }
     }
-}
 
-/// ---------------------------------------------------------------------------
-/// Public API
-/// ---------------------------------------------------------------------------
-#[inline(always)]
-pub fn get_count() -> i32 {
-    unsafe { COUNT }
-}
+    /// Decodes one quadrature transition.
+    ///
+    /// Reads the current encoder inputs, compares them with the previous
+    /// quadrature state and returns the movement direction.
+    ///
+    /// # Returns
+    ///
+    /// * `+1` : Forward transition
+    /// * `-1` : Reverse transition
+    /// * `0`  : Invalid transition or no movement
+    ///
+    /// The sign convention depends on the assignment of encoder channels
+    /// A and B.
+    ///
+    /// See the module-level documentation for details of the decoding
+    /// algorithm and valid state transitions.
+    ///
+    /// This function has a constant execution path and should be called
+    /// whenever either encoder input changes, typically from the EXTI
+    /// interrupt.
+    #[inline(always)]
+    pub fn update(&mut self, gpioa: &gpioa::RegisterBlock) -> i8 {
+        let curr = (gpioa.idr().read().bits() & ENC_MASK) as u8;
 
-#[inline(always)]
-pub fn reset_count() {
-    unsafe {
-        COUNT = 0;
-    }
-}
+        let index = ((self.prev << 2) | curr) as usize;
 
-/// ---------------------------------------------------------------------------
-/// EXTI ISR (Cycle-optimized hot path)
-/// ---------------------------------------------------------------------------
-///
-/// Design:
-/// - No branching
-/// - LUT-based decoding
-/// - Minimal memory accesses
-/// - Constant-time execution path
-///
-/// Expected Cortex-M0+ cost:
-/// - ~45–60 cycles depending on flash wait states
-#[inline(always)]
-pub fn isr() {
-    unsafe {
-        let gpioa = &*GPIOA_REF;
-        let exti = &*EXTI_REF;
+        let delta = LUT[index];
 
-        // Atomic GPIO snapshot
-        let idr = gpioa.idr().read().bits();
+        self.prev = curr;
 
-        // Encode AB state
-        let curr_state = (idr & 0x3) as u8;
-
-        // LUT decode
-        let index = ((PREV_STATE << 2) | curr_state) as usize;
-        let delta = *LUT.get_unchecked(index);
-
-        // Update counter
-        COUNT = COUNT.wrapping_add(delta as i32);
-
-        // Update state machine
-        PREV_STATE = curr_state;
-
-        // Clear EXTI flags (rising + falling)
-        const MASK: u32 = (1 << 0) | (1 << 1);
-
-        exti.rpr1().write(|w| w.bits(MASK));
-        exti.fpr1().write(|w| w.bits(MASK));
+        delta
     }
 }

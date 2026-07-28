@@ -5,15 +5,14 @@ use panic_halt as _;
 use stm32c0::stm32c031 as pac;
 
 mod bsp;
-mod modbus;
-
 mod drivers {
+    pub mod blink;
     pub mod encoder;
+    pub mod keyboard;
     pub mod relay;
     pub mod tm1638;
     pub mod uart;
 }
-
 mod storage {
     pub mod eeprom;
 }
@@ -22,18 +21,13 @@ use bsp::SYSCLK_HZ;
 use rtic::app;
 use systick_monotonic::*;
 
-#[derive(Copy, Clone)]
-pub struct PowerSnapshot {
-    encoder: u64,
-    valid: bool,
-}
-
-#[app(device = pac, peripherals = true, dispatchers = [I2C, SPI, ADC])]
+#[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
 
     use super::*;
-    use crate::drivers::uart::Uart;
-    use crate::modbus::Modbus;
+    use crate::drivers::relay::Relay::{RL1, RL2};
+    use crate::drivers::relay::RelayDriver;
+    use crate::drivers::{encoder::Encoder, tm1638::Tm1638, uart::Uart};
     use crate::storage::eeprom::Eeprom;
 
     #[monotonic(binds = SysTick, default = true)]
@@ -41,139 +35,213 @@ mod app {
 
     #[shared]
     struct Shared {
-        snapshot: PowerSnapshot,
-        uart: Uart,
-        modbus: Modbus,
+        encoder_count: i32,
     }
 
     #[local]
     struct Local {
+        uart: Uart,
+        tm1638: Tm1638,
+        encoder: Encoder,
         eeprom: Eeprom,
-        gpiob: pac::GPIOB,
+        relay: RelayDriver,
     }
 
     #[init]
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let dp = ctx.device;
 
-        // BSP
+        // Configure system clock.
         bsp::init_clocks(&dp.RCC);
-        bsp::init_gpioa(&dp.GPIOA);
-        bsp::init_usart1_pins(&dp.GPIOA);
-        bsp::init_rs485_de(&dp.GPIOA);
-        bsp::init_i2c1_pins(&dp.GPIOB);
-        bsp::init_exti(&dp.EXTI);
 
-        // Drivers
-        drivers::encoder::init();
-        drivers::relay::init(&dp.GPIOB);
-        drivers::tm1638::init();
+        // Configure pins (EXTI IMR remains masked).
+        bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
 
+        // Create TM1638 driver
+        let tm1638 = Tm1638::new();
+
+        // Create UART driver.
+        let uart = Uart::new(dp.USART1, &dp.RCC);
+
+        //Create Relay driver
+        let relay = RelayDriver::new();
+
+        // Create EEPROM driver
         let eeprom = Eeprom::new(dp.I2C1, &dp.RCC);
 
-        // ---------------- FIX: create Modbus first ----------------
-        let modbus = Modbus::new();
-
-        let slave_id = modbus.slave_id();
-
-        let uart = Uart::new(dp.USART1, &dp.RCC, slave_id);
-
+        // Start monotonic timer.
         let mono = Systick::new(ctx.core.SYST, SYSCLK_HZ);
 
+        // --- STABILIZATION WINDOW ---
+        // Allow pull-up resistors and pin capacitance to fully charge to 3.3V (~2ms @ 48MHz)
+        cortex_m::asm::delay(9600_000);
+
+        // Create Encoder
+        let encoder = Encoder::new(&dp.GPIOA);
+
+        // Enable Interrupts (flushes stale flags and unmasks EXTI IMR)
+        bsp::init_interrupts(&dp.EXTI);
+        // ----------------------------
+
+        tm1638_test::spawn().ok();
+
         (
-            Shared {
-                snapshot: PowerSnapshot {
-                    encoder: 0,
-                    valid: false,
-                },
-                uart,
-                modbus,
-            },
+            Shared { encoder_count: 0 },
             Local {
+                uart,
+                tm1638,
+                encoder,
                 eeprom,
-                gpiob: dp.GPIOB,
+                relay,
             },
             init::Monotonics(mono),
         )
     }
 
-    // ------------------------------------------------------------
-    // Encoder ISR
-    // ------------------------------------------------------------
-    #[task(binds = EXTI0_1, priority = 2)]
-    fn exti0_1(_ctx: exti0_1::Context) {
-        drivers::encoder::isr();
-    }
-
-    // ------------------------------------------------------------
-    // Power fail ISR
-    // ------------------------------------------------------------
-    #[task(binds = EXTI4_15, priority = 3, shared = [snapshot])]
-    fn power_fail_irq(mut ctx: power_fail_irq::Context) {
-        let encoder = drivers::encoder::get_count() as u64;
-
-        ctx.shared.snapshot.lock(|snap| {
-            snap.encoder = encoder;
-            snap.valid = true;
-        });
-
-        let exti = unsafe { &*pac::EXTI::ptr() };
-        const MASK: u32 = 1 << 6;
-
-        exti.rpr1().write(|w| unsafe { w.bits(MASK) });
-        exti.fpr1().write(|w| unsafe { w.bits(MASK) });
-    }
-
-    // ------------------------------------------------------------
-    // USART ISR
-    // ------------------------------------------------------------
-    #[task(binds = USART1, priority = 2, shared = [uart, modbus])]
+    #[task(
+        binds = USART1,
+        priority = 2,
+        local = [uart]
+    )]
     fn usart1_irq(ctx: usart1_irq::Context) {
-        (ctx.shared.uart, ctx.shared.modbus).lock(|uart, modbus| {
-            uart.isr(|event| match event {
-                crate::drivers::uart::Event::Rx(b) => modbus.push_byte(b),
-                crate::drivers::uart::Event::FrameEnd => modbus.frame_complete(),
-                crate::drivers::uart::Event::TxDone => {}
-            });
-        });
+        ctx.local.uart.isr();
     }
 
-    // ------------------------------------------------------------
-    // Main loop
-    // ------------------------------------------------------------
-    #[idle(shared = [snapshot, uart, modbus], local = [eeprom, gpiob])]
-    fn idle(mut ctx: idle::Context) -> ! {
+    #[idle]
+    fn idle(_: idle::Context) -> ! {
         loop {
-            // ---------------- Modbus processing ----------------
-            ctx.shared.uart.lock(|uart| {
-                ctx.shared.modbus.lock(|modbus| {
-                    modbus.uart_test(uart);
-                    //modbus.poll(uart);
-                });
-            });
-
-            // ---------------- Power-fail commit ----------------
-            let mut do_commit = None;
-
-            ctx.shared.snapshot.lock(|snap| {
-                if snap.valid {
-                    do_commit = Some(snap.encoder);
-                    snap.valid = false;
-                }
-            });
-
-            if let Some(encoder) = do_commit {
-                let bytes = encoder.to_le_bytes();
-                ctx.local.eeprom.write(0x01, &bytes);
-
-                drivers::relay::off(ctx.local.gpiob);
-
-                loop {
-                    cortex_m::asm::nop();
-                }
-            }
-
-            cortex_m::asm::wfi();
+            //cortex_m::asm::wfi();
         }
+    }
+
+    #[task(
+        local = [
+            tm1638,
+            keys: [u8; 4] = [0; 4],
+            last_keys: u32 = 0,
+            eeprom,
+            relay,
+        ],
+        shared = [encoder_count]
+    )]
+    fn tm1638_test(mut ctx: tm1638_test::Context) {
+        use crate::drivers::tm1638::{FONT, KEY1, KEY2, KEY3, KEY4, KEY6};
+
+        const KNOWN_TEST_VALUE: i32 = 424242;
+
+        let tm = ctx.local.tm1638;
+        let relays = ctx.local.relay;
+
+        // Read keyboard
+        tm.read_keys(ctx.local.keys);
+
+        let current_keys = (ctx.local.keys[3] as u32) << 24
+            | (ctx.local.keys[2] as u32) << 16
+            | (ctx.local.keys[1] as u32) << 8
+            | (ctx.local.keys[0] as u32);
+
+        // Detect rising edge
+        let pressed_keys = current_keys & !*ctx.local.last_keys;
+        *ctx.local.last_keys = current_keys;
+
+        match pressed_keys {
+            KEY1 => {
+                let mut buf = [0u8; 4];
+                // Sequential 4-byte read (1 transaction)
+                ctx.local.eeprom.read(0, &mut buf);
+
+                let loaded_count = i32::from_le_bytes(buf);
+
+                ctx.shared.encoder_count.lock(|c| {
+                    *c = loaded_count;
+                });
+            }
+            KEY2 => {
+                let buf = KNOWN_TEST_VALUE.to_le_bytes();
+                // Page write (1 transaction, 1 internal write cycle delay)
+                ctx.local.eeprom.write(0, &buf);
+
+                ctx.shared.encoder_count.lock(|c| {
+                    *c = KNOWN_TEST_VALUE;
+                });
+            }
+            KEY3 => {
+                relays.toggle(RL1);
+            }
+            KEY4 => {
+                relays.toggle(RL2);
+            }
+            KEY6 => {
+                ctx.shared.encoder_count.lock(|c| *c = 0);
+            }
+            _ => {}
+        }
+
+        // Display formatting
+        let count = ctx.shared.encoder_count.lock(|c| *c);
+        let negative = count < 0;
+        let mut value = count.unsigned_abs();
+
+        let mut data = [0u8; 16];
+
+        for i in 0..6 {
+            let digit = (value % 10) as usize;
+            value /= 10;
+            data[(7 - i) * 2] = FONT[digit];
+        }
+
+        if negative {
+            data[2] = 0x40;
+        }
+
+        tm.write_display(&data);
+
+        tm1638_test::spawn_after(100.millis()).ok();
+    }
+
+    #[task(
+        binds = EXTI0_1,
+        priority = 3,
+        shared = [encoder_count],
+        local = [encoder],
+    )]
+    fn exti0_1(mut ctx: exti0_1::Context) {
+        let exti = unsafe { &*pac::EXTI::ptr() };
+        let gpioa = unsafe { &*pac::GPIOA::ptr() };
+
+        // Clear pending EXTI flags.
+        exti.rpr1().write(|w| {
+            w.rpif0().set_bit();
+            w.rpif1().set_bit()
+        });
+
+        exti.fpr1().write(|w| {
+            w.fpif0().set_bit();
+            w.fpif1().set_bit()
+        });
+
+        // Decode transition.
+        let delta = ctx.local.encoder.update(gpioa);
+
+        if delta != 0 {
+            ctx.shared.encoder_count.lock(|count| {
+                *count += i32::from(delta);
+            });
+        }
+    }
+
+    #[task(
+        binds = EXTI4_15,
+        priority = 4,
+        shared = [encoder_count],
+    )]
+    fn exti4_15(mut ctx: exti4_15::Context) {
+        let exti = unsafe { &*pac::EXTI::ptr() };
+
+        exti.fpr1().write(|w| w.fpif6().set_bit());
+
+        ctx.shared.encoder_count.lock(|count| {
+            *count = -123_456;
+        });
     }
 }

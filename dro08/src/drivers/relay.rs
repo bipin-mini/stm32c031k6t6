@@ -1,57 +1,82 @@
-#![allow(dead_code)]
-
 use stm32c0::stm32c031 as pac;
 
-#[inline(always)]
-pub fn init(gpio: &pac::GPIOB) {
-    gpio.moder().modify(|_, w| {
-        w.mode0().output();
-        w.mode1().output()
-    });
-
-    gpio.otyper().modify(|_, w| {
-        w.ot0().clear_bit();
-        w.ot1().clear_bit()
-    });
-
-    gpio.ospeedr().modify(|_, w| {
-        w.ospeed0().low_speed();
-        w.ospeed1().low_speed()
-    });
-
-    gpio.pupdr().modify(|_, w| {
-        w.pupd0().floating();
-        w.pupd1().floating()
-    });
-
-    // SAFE STATE: both OFF
-    off(gpio);
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum Relay {
+    RL1,
+    RL2,
 }
 
-#[inline(always)]
-pub fn low_on(gpio: &pac::GPIOB) {
-    gpio.bsrr().write(|w| w.bs0().set_bit());
-}
+pub struct RelayDriver;
 
-#[inline(always)]
-pub fn low_off(gpio: &pac::GPIOB) {
-    gpio.bsrr().write(|w| w.br0().set_bit());
-}
+impl RelayDriver {
+    pub const fn new() -> Self {
+        Self
+    }
 
-#[inline(always)]
-pub fn high_on(gpio: &pac::GPIOB) {
-    gpio.bsrr().write(|w| w.bs1().set_bit());
-}
+    #[inline(always)]
+    fn gpio() -> pac::GPIOB {
+        unsafe { pac::Peripherals::steal().GPIOB }
+    }
 
-#[inline(always)]
-pub fn high_off(gpio: &pac::GPIOB) {
-    gpio.bsrr().write(|w| w.br1().set_bit());
-}
+    pub fn on(&self, relay: Relay) {
+        let gpio = Self::gpio();
 
-#[inline(always)]
-pub fn off(gpio: &pac::GPIOB) {
-    gpio.bsrr().write(|w| {
-        w.br0().set_bit();
-        w.br1().set_bit()
-    });
+        match relay {
+            Relay::RL1 => gpio.bsrr().write(|w| w.br0().set_bit()),
+            Relay::RL2 => gpio.bsrr().write(|w| w.br1().set_bit()),
+        };
+    }
+
+    pub fn off(&self, relay: Relay) {
+        let gpio = Self::gpio();
+
+        match relay {
+            Relay::RL1 => gpio.bsrr().write(|w| w.bs0().set_bit()),
+            Relay::RL2 => gpio.bsrr().write(|w| w.bs1().set_bit()),
+        };
+    }
+
+    pub fn set(&self, relay: Relay, on: bool) {
+        if on {
+            self.on(relay);
+        } else {
+            self.off(relay);
+        }
+    }
+
+    pub fn is_on(&self, relay: Relay) -> bool {
+        let gpio = Self::gpio();
+        let odr = gpio.odr().read();
+
+        match relay {
+            Relay::RL1 => !odr.od0().bit_is_set(),
+            Relay::RL2 => !odr.od1().bit_is_set(),
+        }
+    }
+
+    pub fn toggle(&self, relay: Relay) {
+        if self.is_on(relay) {
+            self.off(relay);
+        } else {
+            self.on(relay);
+        }
+    }
+
+    pub fn all_on(&self) {
+        let gpio = Self::gpio();
+
+        gpio.bsrr().write(|w| {
+            w.br0().set_bit();
+            w.br1().set_bit()
+        });
+    }
+
+    pub fn all_off(&self) {
+        let gpio = Self::gpio();
+
+        gpio.bsrr().write(|w| {
+            w.bs0().set_bit();
+            w.bs1().set_bit()
+        });
+    }
 }
