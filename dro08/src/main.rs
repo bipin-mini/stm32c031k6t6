@@ -11,7 +11,7 @@ mod drivers {
     pub mod keyboard;
     pub mod relay;
     pub mod tm1638;
-    pub mod uart;
+    pub mod uart_dma;
 }
 mod storage {
     pub mod eeprom;
@@ -27,7 +27,7 @@ mod app {
     use super::*;
     use crate::drivers::relay::Relay::{RL1, RL2};
     use crate::drivers::relay::RelayDriver;
-    use crate::drivers::{encoder::Encoder, tm1638::Tm1638, uart::Uart};
+    use crate::drivers::{encoder::Encoder, tm1638::Tm1638, uart_dma::UartDma};
     use crate::storage::eeprom::Eeprom;
 
     #[monotonic(binds = SysTick, default = true)]
@@ -40,7 +40,7 @@ mod app {
 
     #[local]
     struct Local {
-        uart: Uart,
+        uart: UartDma,
         tm1638: Tm1638,
         encoder: Encoder,
         eeprom: Eeprom,
@@ -61,7 +61,7 @@ mod app {
         let tm1638 = Tm1638::new();
 
         // Create UART driver.
-        let uart = Uart::new(dp.USART1, &dp.RCC);
+        let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
 
         //Create Relay driver
         let relay = RelayDriver::new();
@@ -84,6 +84,7 @@ mod app {
         // ----------------------------
 
         tm1638_test::spawn().ok();
+        uart_task::spawn().ok();
 
         (
             Shared { encoder_count: 0 },
@@ -98,13 +99,20 @@ mod app {
         )
     }
 
-    #[task(
-        binds = USART1,
-        priority = 2,
-        local = [uart]
-    )]
-    fn usart1_irq(ctx: usart1_irq::Context) {
-        ctx.local.uart.isr();
+    #[task(priority = 2, local = [uart])]
+    fn uart_task(ctx: uart_task::Context) {
+        // Direct mutable access without locks or critical sections
+        let uart = ctx.local.uart;
+
+        // 1. Advance UART DMA state machine
+        uart.poll();
+
+        if !uart.tx_busy() {
+            let msg = b"hello\r\n";
+            let _ = uart.send_data(msg);
+        }
+
+        uart_task::spawn_after(1000.millis()).ok();
     }
 
     #[idle]
