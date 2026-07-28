@@ -1,0 +1,2933 @@
+warning: constant `BAUDRATE` is never used
+   --> src/drivers/uart_dma.rs:289:7
+    |
+289 | const BAUDRATE: u32 = 9600;
+    |       ^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `RX_BUF_SIZE` is never used
+   --> src/drivers/uart_dma.rs:291:7
+    |
+291 | const RX_BUF_SIZE: usize = 256;
+    |       ^^^^^^^^^^^
+
+warning: constant `TX_BUF_SIZE` is never used
+   --> src/drivers/uart_dma.rs:292:7
+    |
+292 | const TX_BUF_SIZE: usize = 256;
+    |       ^^^^^^^^^^^
+
+warning: constant `RX_TIMEOUT` is never used
+   --> src/drivers/uart_dma.rs:294:7
+    |
+294 | const RX_TIMEOUT: u16 = 40;
+    |       ^^^^^^^^^^
+
+warning: struct `UartDma` is never constructed
+   --> src/drivers/uart_dma.rs:296:12
+    |
+296 | pub struct UartDma {
+    |            ^^^^^^^
+
+warning: multiple associated items are never used
+   --> src/drivers/uart_dma.rs:310:12
+    |
+309 | impl UartDma {
+    | ------------ associated items in this implementation
+310 |     pub fn new(usart: pac::USART1, dma: &pac::DMA, dmamux: &pac::DMAMUX, rcc: &pac::RCC) -> Self {
+    |            ^^^
+...
+398 |     pub fn poll(&mut self) {
+    |            ^^^^
+...
+432 |     pub fn frame_available(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^
+...
+436 |     pub fn rx_data(&self) -> &[u8] {
+    |            ^^^^^^^
+...
+440 |     pub fn clear_rx(&mut self) {
+    |            ^^^^^^^^
+...
+448 |     pub fn tx_buffer_mut(&mut self) -> &mut [u8] {
+    |            ^^^^^^^^^^^^^
+...
+452 |     pub fn start_tx(&mut self, len: usize) {
+    |            ^^^^^^^^
+...
+469 |     pub fn tx_busy(&self) -> bool {
+    |            ^^^^^^^
+...
+476 |     fn configure_dma(&mut self, dma: &pac::DMA, dmamux: &pac::DMAMUX) {
+    |        ^^^^^^^^^^^^^
+...
+580 |     fn start_rx_dma(&mut self) {
+    |        ^^^^^^^^^^^^
+...
+618 |     fn stop_rx_dma(&mut self) {
+    |        ^^^^^^^^^^^
+...
+631 |     fn rx_length(&self) -> usize {
+    |        ^^^^^^^^^
+...
+638 |     fn start_tx_dma(&mut self) {
+    |        ^^^^^^^^^^^^
+
+
+bsp:	file format elf32-littlearm
+
+Disassembly of section .text:
+
+080000b4 <__stext>:
+ 80000b4: f000 fe71    	bl	0x8000d9a <__pre_init>  @ imm = #0xce2
+ 80000b8: 4808         	ldr	r0, [pc, #0x20]         @ 0x80000dc <__stext+0x28>
+ 80000ba: 4909         	ldr	r1, [pc, #0x24]         @ 0x80000e0 <__stext+0x2c>
+ 80000bc: 2200         	movs	r2, #0x0
+ 80000be: 4281         	cmp	r1, r0
+ 80000c0: d001         	beq	0x80000c6 <__stext+0x12> @ imm = #0x2
+ 80000c2: c004         	stm	r0!, {r2}
+ 80000c4: e7fb         	b	0x80000be <__stext+0xa> @ imm = #-0xa
+ 80000c6: 4807         	ldr	r0, [pc, #0x1c]         @ 0x80000e4 <__stext+0x30>
+ 80000c8: 4907         	ldr	r1, [pc, #0x1c]         @ 0x80000e8 <__stext+0x34>
+ 80000ca: 4a08         	ldr	r2, [pc, #0x20]         @ 0x80000ec <__stext+0x38>
+ 80000cc: 4281         	cmp	r1, r0
+ 80000ce: d002         	beq	0x80000d6 <__stext+0x22> @ imm = #0x4
+ 80000d0: ca08         	ldm	r2!, {r3}
+ 80000d2: c008         	stm	r0!, {r3}
+ 80000d4: e7fa         	b	0x80000cc <__stext+0x18> @ imm = #-0xc
+ 80000d6: f000 fe0d    	bl	0x8000cf4 <main>        @ imm = #0xc1a
+ 80000da: de00         	udf	#0x0
+ 80000dc: 20 00 00 20  	.word	0x20000020
+ 80000e0: 58 00 00 20  	.word	0x20000058
+ 80000e4: 00 00 00 20  	.word	0x20000000
+ 80000e8: 20 00 00 20  	.word	0x20000020
+ 80000ec: f8 12 00 08  	.word	0x080012f8
+
+080000f0 <EXTI0_1>:
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 80000f0: b5b0         	push	{r4, r5, r7, lr}
+ 80000f2: af02         	add	r7, sp, #0x8
+ 80000f4: 4814         	ldr	r0, [pc, #0x50]         @ 0x8000148 <EXTI0_1+0x58>
+ 80000f6: 2203         	movs	r2, #0x3
+;         intrinsics::volatile_store(dst, src);
+ 80000f8: 6002         	str	r2, [r0]
+ 80000fa: 6042         	str	r2, [r0, #0x4]
+ 80000fc: 4813         	ldr	r0, [pc, #0x4c]         @ 0x800014c <EXTI0_1+0x5c>
+;         intrinsics::volatile_load(src)
+ 80000fe: 6801         	ldr	r1, [r0]
+;         let curr = (gpioa.idr().read().bits() & ENC_MASK) as u8;
+ 8000100: 4011         	ands	r1, r2
+;         let index = ((self.prev << 2) | curr) as usize;
+ 8000102: 4a13         	ldr	r2, [pc, #0x4c]         @ 0x8000150 <EXTI0_1+0x60>
+ 8000104: 7810         	ldrb	r0, [r2]
+ 8000106: 0083         	lsls	r3, r0, #0x2
+ 8000108: 1858         	adds	r0, r3, r1
+ 800010a: b2c0         	uxtb	r0, r0
+ 800010c: b2db         	uxtb	r3, r3
+;         let delta = LUT[index];
+ 800010e: 2b10         	cmp	r3, #0x10
+ 8000110: d216         	bhs	0x8000140 <EXTI0_1+0x50> @ imm = #0x2c
+;         self.prev = curr;
+ 8000112: 7011         	strb	r1, [r2]
+ 8000114: 2101         	movs	r1, #0x1
+;         if delta != 0 {
+ 8000116: 4081         	lsls	r1, r0
+ 8000118: 4a0f         	ldr	r2, [pc, #0x3c]         @ 0x8000158 <EXTI0_1+0x68>
+ 800011a: 4211         	tst	r1, r2
+ 800011c: d000         	beq	0x8000120 <EXTI0_1+0x30> @ imm = #0x0
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 800011e: bdb0         	pop	{r4, r5, r7, pc}
+ 8000120: 490c         	ldr	r1, [pc, #0x30]         @ 0x8000154 <EXTI0_1+0x64>
+ 8000122: 560d         	ldrsb	r5, [r1, r0]
+;                     $func($($args),*)
+ 8000124: f000 fe50    	bl	0x8000dc8 <__primask_r> @ imm = #0xca0
+ 8000128: 4604         	mov	r4, r0
+ 800012a: f000 fe3c    	bl	0x8000da6 <__cpsid>     @ imm = #0xc78
+;                 *count += i32::from(delta);
+ 800012e: 480b         	ldr	r0, [pc, #0x2c]         @ 0x800015c <EXTI0_1+0x6c>
+ 8000130: 6801         	ldr	r1, [r0]
+ 8000132: 1949         	adds	r1, r1, r5
+ 8000134: 6001         	str	r1, [r0]
+;     if primask.is_active() {
+ 8000136: 07e0         	lsls	r0, r4, #0x1f
+ 8000138: d1f1         	bne	0x800011e <EXTI0_1+0x2e> @ imm = #-0x1e
+;                     $func($($args),*)
+ 800013a: f000 fe36    	bl	0x8000daa <__cpsie>     @ imm = #0xc6c
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 800013e: bdb0         	pop	{r4, r5, r7, pc}
+ 8000140: 2110         	movs	r1, #0x10
+;         let delta = LUT[index];
+ 8000142: f000 fe23    	bl	0x8000d8c <_RNvNtCsbFcyadfXBGF_4core9panicking18panic_bounds_check> @ imm = #0xc46
+ 8000146: 46c0         	mov	r8, r8
+ 8000148: 0c 18 02 40  	.word	0x4002180c
+ 800014c: 10 00 00 50  	.word	0x50000010
+ 8000150: 68 02 00 20  	.word	0x20000268
+ 8000154: d4 12 00 08  	.word	0x080012d4
+ 8000158: 69 96 00 00  	.word	0x00009669
+ 800015c: 6c 02 00 20  	.word	0x2000026c
+
+08000160 <EXTI4_15>:
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000160: b580         	push	{r7, lr}
+ 8000162: af00         	add	r7, sp, #0x0
+ 8000164: 4803         	ldr	r0, [pc, #0xc]          @ 0x8000174 <EXTI4_15+0x14>
+ 8000166: 2140         	movs	r1, #0x40
+;         intrinsics::volatile_store(dst, src);
+ 8000168: 6001         	str	r1, [r0]
+;             *count = -123_456;
+ 800016a: 4803         	ldr	r0, [pc, #0xc]          @ 0x8000178 <EXTI4_15+0x18>
+ 800016c: 4903         	ldr	r1, [pc, #0xc]          @ 0x800017c <EXTI4_15+0x1c>
+ 800016e: 6001         	str	r1, [r0]
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000170: bd80         	pop	{r7, pc}
+ 8000172: 46c0         	mov	r8, r8
+ 8000174: 10 18 02 40  	.word	0x40021810
+ 8000178: 6c 02 00 20  	.word	0x2000026c
+ 800017c: c0 1d fe ff  	.word	0xfffe1dc0
+
+08000180 <RTC>:
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000180: b5f0         	push	{r4, r5, r6, r7, lr}
+ 8000182: af03         	add	r7, sp, #0xc
+ 8000184: b091         	sub	sp, #0x44
+;             Relaxed => intrinsics::atomic_load::<T, { AO::Relaxed }>(dst),
+ 8000186: 4ad3         	ldr	r2, [pc, #0x34c]        @ 0x80004d4 <RTC+0x354>
+ 8000188: 6810         	ldr	r0, [r2]
+;             Acquire => intrinsics::atomic_load::<T, { AO::Acquire }>(dst),
+ 800018a: 6851         	ldr	r1, [r2, #0x4]
+ 800018c: f3bf 8f5f    	dmb	sy
+;         if current_head == self.tail.load(Ordering::Acquire) {
+ 8000190: 4288         	cmp	r0, r1
+ 8000192: d100         	bne	0x8000196 <RTC+0x16>    @ imm = #0x0
+ 8000194: e24a         	b	0x800062c <RTC+0x4ac>   @ imm = #0x494
+ 8000196: 2401         	movs	r4, #0x1
+ 8000198: 03a1         	lsls	r1, r4, #0xe
+ 800019a: 9108         	str	r1, [sp, #0x20]
+ 800019c: 03e5         	lsls	r5, r4, #0xf
+ 800019e: 0521         	lsls	r1, r4, #0x14
+ 80001a0: 9104         	str	r1, [sp, #0x10]
+ 80001a2: 0561         	lsls	r1, r4, #0x15
+ 80001a4: 910b         	str	r1, [sp, #0x2c]
+ 80001a6: 05e1         	lsls	r1, r4, #0x17
+ 80001a8: 9107         	str	r1, [sp, #0x1c]
+ 80001aa: 2105         	movs	r1, #0x5
+ 80001ac: 070b         	lsls	r3, r1, #0x1c
+ 80001ae: 940a         	str	r4, [sp, #0x28]
+ 80001b0: 9501         	str	r5, [sp, #0x4]
+ 80001b2: 930c         	str	r3, [sp, #0x30]
+;         (val + 1) % N
+ 80001b4: 4060         	eors	r0, r4
+;             Release => intrinsics::atomic_store::<T, { AO::Release }>(dst, val),
+ 80001b6: f3bf 8f5f    	dmb	sy
+ 80001ba: 6010         	str	r0, [r2]
+ 80001bc: 4ac6         	ldr	r2, [pc, #0x318]        @ 0x80004d8 <RTC+0x358>
+;             Relaxed => intrinsics::atomic_load::<T, { AO::Relaxed }>(dst),
+ 80001be: 6850         	ldr	r0, [r2, #0x4]
+;             slice_get_unchecked(slice, self)
+ 80001c0: 1811         	adds	r1, r2, r0
+ 80001c2: 2600         	movs	r6, #0x0
+ 80001c4: 9605         	str	r6, [sp, #0x14]
+;         intrinsics::write_via_move(dst, src)
+ 80001c6: 720e         	strb	r6, [r1, #0x8]
+;         (val + 1) % N
+ 80001c8: 4060         	eors	r0, r4
+;             Release => intrinsics::atomic_store::<T, { AO::Release }>(dst, val),
+ 80001ca: f3bf 8f5f    	dmb	sy
+ 80001ce: 6050         	str	r0, [r2, #0x4]
+;         intrinsics::volatile_store(dst, src);
+ 80001d0: 9804         	ldr	r0, [sp, #0x10]
+ 80001d2: 6198         	str	r0, [r3, #0x18]
+ 80001d4: 2142         	movs	r1, #0x42
+ 80001d6: 2508         	movs	r5, #0x8
+;         intrinsics::volatile_store(dst, src);
+ 80001d8: 980b         	ldr	r0, [sp, #0x2c]
+ 80001da: 6198         	str	r0, [r3, #0x18]
+ 80001dc: 460c         	mov	r4, r1
+;         if (data & 1) != 0 {
+ 80001de: 07c8         	lsls	r0, r1, #0x1f
+ 80001e0: 49be         	ldr	r1, [pc, #0x2f8]        @ 0x80004dc <RTC+0x35c>
+ 80001e2: d106         	bne	0x80001f2 <RTC+0x72>    @ imm = #0xc
+;         intrinsics::volatile_store(dst, src);
+ 80001e4: 9807         	ldr	r0, [sp, #0x1c]
+ 80001e6: 6198         	str	r0, [r3, #0x18]
+;         intrinsics::volatile_load(src)
+ 80001e8: 6818         	ldr	r0, [r3]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80001ea: 4008         	ands	r0, r1
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 80001ec: 9908         	ldr	r1, [sp, #0x20]
+ 80001ee: 4308         	orrs	r0, r1
+;             dio_low(); // drive low
+ 80001f0: e001         	b	0x80001f6 <RTC+0x76>    @ imm = #0x2
+;         intrinsics::volatile_load(src)
+ 80001f2: 6818         	ldr	r0, [r3]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80001f4: 4008         	ands	r0, r1
+ 80001f6: 6018         	str	r0, [r3]
+;                     $func($($args),*)
+ 80001f8: f000 fde4    	bl	0x8000dc4 <__nop>       @ imm = #0xbc8
+ 80001fc: f000 fde2    	bl	0x8000dc4 <__nop>       @ imm = #0xbc4
+ 8000200: 2620         	movs	r6, #0x20
+;         intrinsics::volatile_store(dst, src);
+ 8000202: 980c         	ldr	r0, [sp, #0x30]
+ 8000204: 6186         	str	r6, [r0, #0x18]
+;                     $func($($args),*)
+ 8000206: f000 fddd    	bl	0x8000dc4 <__nop>       @ imm = #0xbba
+ 800020a: f000 fddb    	bl	0x8000dc4 <__nop>       @ imm = #0xbb6
+ 800020e: 9b0c         	ldr	r3, [sp, #0x30]
+;         data >>= 1;
+ 8000210: 0861         	lsrs	r1, r4, #0x1
+;             fn lt(&self, other: &Self) -> bool { *self <  *other }
+ 8000212: 1e6d         	subs	r5, r5, #0x1
+;         if self.start < self.end {
+ 8000214: d1e0         	bne	0x80001d8 <RTC+0x58>    @ imm = #-0x40
+ 8000216: 9609         	str	r6, [sp, #0x24]
+;         intrinsics::volatile_load(src)
+ 8000218: 6818         	ldr	r0, [r3]
+ 800021a: 4ab0         	ldr	r2, [pc, #0x2c0]        @ 0x80004dc <RTC+0x35c>
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 800021c: 4010         	ands	r0, r2
+;         intrinsics::volatile_store(dst, src);
+ 800021e: 6018         	str	r0, [r3]
+ 8000220: 980b         	ldr	r0, [sp, #0x2c]
+ 8000222: 6198         	str	r0, [r3, #0x18]
+ 8000224: 9805         	ldr	r0, [sp, #0x14]
+ 8000226: 9006         	str	r0, [sp, #0x18]
+;         intrinsics::volatile_load(src)
+ 8000228: 6818         	ldr	r0, [r3]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 800022a: 4010         	ands	r0, r2
+;         intrinsics::volatile_store(dst, src);
+ 800022c: 6018         	str	r0, [r3]
+ 800022e: 9d05         	ldr	r5, [sp, #0x14]
+ 8000230: 462e         	mov	r6, r5
+ 8000232: 9c0b         	ldr	r4, [sp, #0x2c]
+;         intrinsics::volatile_store(dst, src);
+ 8000234: 619c         	str	r4, [r3, #0x18]
+;                     $func($($args),*)
+ 8000236: f000 fdc5    	bl	0x8000dc4 <__nop>       @ imm = #0xb8a
+ 800023a: f000 fdc3    	bl	0x8000dc4 <__nop>       @ imm = #0xb86
+;         intrinsics::volatile_store(dst, src);
+ 800023e: 980c         	ldr	r0, [sp, #0x30]
+ 8000240: 9909         	ldr	r1, [sp, #0x24]
+ 8000242: 6181         	str	r1, [r0, #0x18]
+;                     $func($($args),*)
+ 8000244: f000 fdbe    	bl	0x8000dc4 <__nop>       @ imm = #0xb7c
+ 8000248: f000 fdbc    	bl	0x8000dc4 <__nop>       @ imm = #0xb78
+ 800024c: 4afc         	ldr	r2, [pc, #0x3f0]        @ 0x8000640 <RTC+0x4c0>
+ 800024e: 9b0c         	ldr	r3, [sp, #0x30]
+;         intrinsics::volatile_load(src)
+ 8000250: 6918         	ldr	r0, [r3, #0x10]
+;         intrinsics::volatile_store(dst, src);
+ 8000252: 619c         	str	r4, [r3, #0x18]
+;         intrinsics::volatile_load(src)
+ 8000254: 6819         	ldr	r1, [r3]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000256: 4011         	ands	r1, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000258: 6019         	str	r1, [r3]
+;         if dio_read() {
+ 800025a: 990a         	ldr	r1, [sp, #0x28]
+ 800025c: 40a9         	lsls	r1, r5
+;     (gpio().idr().read().bits() & DIO) != 0
+ 800025e: 0600         	lsls	r0, r0, #0x18
+ 8000260: 17c0         	asrs	r0, r0, #0x1f
+;         if dio_read() {
+ 8000262: 4008         	ands	r0, r1
+ 8000264: 4306         	orrs	r6, r0
+;             let (a, b) = intrinsics::add_with_overflow(self as $ActualT, rhs as $ActualT);
+ 8000266: 1c6d         	adds	r5, r5, #0x1
+;         if self.start < self.end {
+ 8000268: 2d08         	cmp	r5, #0x8
+ 800026a: d1e3         	bne	0x8000234 <RTC+0xb4>    @ imm = #-0x3a
+;             *b = read_byte();
+ 800026c: 48f6         	ldr	r0, [pc, #0x3d8]        @ 0x8000648 <RTC+0x4c8>
+ 800026e: 9906         	ldr	r1, [sp, #0x18]
+;             *b = read_byte();
+ 8000270: 5446         	strb	r6, [r0, r1]
+;         unsafe { transmute(intrinsics::offset(self.as_ptr(), count)) }
+ 8000272: 1c48         	adds	r0, r1, #0x1
+;                         if ptr == crate::intrinsics::transmute::<$ptr, NonNull<T>>(end_or_len) {
+ 8000274: 2804         	cmp	r0, #0x4
+ 8000276: d1d6         	bne	0x8000226 <RTC+0xa6>    @ imm = #-0x54
+ 8000278: 2010         	movs	r0, #0x10
+ 800027a: 9006         	str	r0, [sp, #0x18]
+;         intrinsics::volatile_store(dst, src);
+ 800027c: 6198         	str	r0, [r3, #0x18]
+;         intrinsics::volatile_load(src)
+ 800027e: 6818         	ldr	r0, [r3]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000280: 4010         	ands	r0, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000282: 6018         	str	r0, [r3]
+ 8000284: 4af0         	ldr	r2, [pc, #0x3c0]        @ 0x8000648 <RTC+0x4c8>
+;         let current_keys = (ctx.local.keys[3] as u32) << 24
+ 8000286: 78d0         	ldrb	r0, [r2, #0x3]
+ 8000288: 0600         	lsls	r0, r0, #0x18
+;             | (ctx.local.keys[2] as u32) << 16
+ 800028a: 7891         	ldrb	r1, [r2, #0x2]
+ 800028c: 0409         	lsls	r1, r1, #0x10
+;         let current_keys = (ctx.local.keys[3] as u32) << 24
+ 800028e: 1808         	adds	r0, r1, r0
+;             | (ctx.local.keys[1] as u32) << 8
+ 8000290: 7851         	ldrb	r1, [r2, #0x1]
+ 8000292: 0209         	lsls	r1, r1, #0x8
+;         let current_keys = (ctx.local.keys[3] as u32) << 24
+ 8000294: 1840         	adds	r0, r0, r1
+;             | (ctx.local.keys[0] as u32);
+ 8000296: 7811         	ldrb	r1, [r2]
+;         let current_keys = (ctx.local.keys[3] as u32) << 24
+ 8000298: 1840         	adds	r0, r0, r1
+ 800029a: 4aec         	ldr	r2, [pc, #0x3b0]        @ 0x800064c <RTC+0x4cc>
+;         let pressed_keys = current_keys & !*ctx.local.last_keys;
+ 800029c: 6811         	ldr	r1, [r2]
+;         *ctx.local.last_keys = current_keys;
+ 800029e: 6010         	str	r0, [r2]
+;         let pressed_keys = current_keys & !*ctx.local.last_keys;
+ 80002a0: 4388         	bics	r0, r1
+;         match pressed_keys {
+ 80002a2: 2801         	cmp	r0, #0x1
+ 80002a4: d04a         	beq	0x800033c <RTC+0x1bc>   @ imm = #0x94
+ 80002a6: 2810         	cmp	r0, #0x10
+ 80002a8: 4ee4         	ldr	r6, [pc, #0x390]        @ 0x800063c <RTC+0x4bc>
+ 80002aa: d00a         	beq	0x80002c2 <RTC+0x142>   @ imm = #0x14
+ 80002ac: 9904         	ldr	r1, [sp, #0x10]
+ 80002ae: 4288         	cmp	r0, r1
+ 80002b0: d000         	beq	0x80002b4 <RTC+0x134>   @ imm = #0x0
+ 80002b2: e080         	b	0x80003b6 <RTC+0x236>   @ imm = #0x100
+;                     $func($($args),*)
+ 80002b4: f000 fd88    	bl	0x8000dc8 <__primask_r> @ imm = #0xb10
+ 80002b8: 4605         	mov	r5, r0
+ 80002ba: f000 fd74    	bl	0x8000da6 <__cpsid>     @ imm = #0xae8
+ 80002be: 2000         	movs	r0, #0x0
+ 80002c0: e039         	b	0x8000336 <RTC+0x1b6>   @ imm = #0x72
+;                 let buf = KNOWN_TEST_VALUE.to_le_bytes();
+ 80002c2: 48dc         	ldr	r0, [pc, #0x370]        @ 0x8000634 <RTC+0x4b4>
+ 80002c4: 900d         	str	r0, [sp, #0x34]
+ 80002c6: 9d01         	ldr	r5, [sp, #0x4]
+;         intrinsics::volatile_load(src)
+ 80002c8: 6830         	ldr	r0, [r6]
+;         while i2c.isr().read().busy().bit_is_set() {}
+ 80002ca: 4228         	tst	r0, r5
+ 80002cc: d1fc         	bne	0x80002c8 <RTC+0x148>   @ imm = #-0x8
+;         intrinsics::volatile_store(dst, src);
+ 80002ce: 4630         	mov	r0, r6
+ 80002d0: 3814         	subs	r0, #0x14
+ 80002d2: 49e0         	ldr	r1, [pc, #0x380]        @ 0x8000654 <RTC+0x4d4>
+ 80002d4: 6001         	str	r1, [r0]
+;         intrinsics::volatile_load(src)
+ 80002d6: 6831         	ldr	r1, [r6]
+;         while i2c.isr().read().txis().bit_is_clear() {}
+ 80002d8: 0789         	lsls	r1, r1, #0x1e
+ 80002da: d5fc         	bpl	0x80002d6 <RTC+0x156>   @ imm = #-0x8
+ 80002dc: 2100         	movs	r1, #0x0
+;         intrinsics::volatile_store(dst, src);
+ 80002de: 6131         	str	r1, [r6, #0x10]
+ 80002e0: aa0d         	add	r2, sp, #0x34
+;         for &b in data {
+ 80002e2: 5c52         	ldrb	r2, [r2, r1]
+;         intrinsics::volatile_load(src)
+ 80002e4: 6833         	ldr	r3, [r6]
+;             while i2c.isr().read().txis().bit_is_clear() {}
+ 80002e6: 079b         	lsls	r3, r3, #0x1e
+ 80002e8: d5fc         	bpl	0x80002e4 <RTC+0x164>   @ imm = #-0x8
+;         intrinsics::volatile_store(dst, src);
+ 80002ea: 6132         	str	r2, [r6, #0x10]
+;         unsafe { transmute(intrinsics::offset(self.as_ptr(), count)) }
+ 80002ec: 1c49         	adds	r1, r1, #0x1
+;                         if ptr == crate::intrinsics::transmute::<$ptr, NonNull<T>>(end_or_len) {
+ 80002ee: 2904         	cmp	r1, #0x4
+ 80002f0: d1f6         	bne	0x80002e0 <RTC+0x160>   @ imm = #-0x14
+;         intrinsics::volatile_load(src)
+ 80002f2: 6831         	ldr	r1, [r6]
+;         while i2c.isr().read().tc().bit_is_clear() {}
+ 80002f4: 0649         	lsls	r1, r1, #0x19
+ 80002f6: d5fc         	bpl	0x80002f2 <RTC+0x172>   @ imm = #-0x8
+;         intrinsics::volatile_load(src)
+ 80002f8: 6801         	ldr	r1, [r0]
+;             fn bitand(self, rhs: $t) -> $t { self & rhs }
+ 80002fa: 4ad7         	ldr	r2, [pc, #0x35c]        @ 0x8000658 <RTC+0x4d8>
+ 80002fc: 4011         	ands	r1, r2
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 80002fe: 9a08         	ldr	r2, [sp, #0x20]
+ 8000300: 4311         	orrs	r1, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000302: 6001         	str	r1, [r0]
+;         intrinsics::volatile_load(src)
+ 8000304: 6831         	ldr	r1, [r6]
+;         while i2c.isr().read().stopf().bit_is_clear() {}
+ 8000306: 0689         	lsls	r1, r1, #0x1a
+ 8000308: d5fc         	bpl	0x8000304 <RTC+0x184>   @ imm = #-0x8
+ 800030a: 4acb         	ldr	r2, [pc, #0x32c]        @ 0x8000638 <RTC+0x4b8>
+ 800030c: 9b09         	ldr	r3, [sp, #0x24]
+ 800030e: 6073         	str	r3, [r6, #0x4]
+;         intrinsics::volatile_load(src)
+ 8000310: 6831         	ldr	r1, [r6]
+;             while i2c.isr().read().busy().bit_is_set() {}
+ 8000312: 4229         	tst	r1, r5
+ 8000314: d1fc         	bne	0x8000310 <RTC+0x190>   @ imm = #-0x8
+;         intrinsics::volatile_store(dst, src);
+ 8000316: 6002         	str	r2, [r0]
+;         intrinsics::volatile_load(src)
+ 8000318: 6831         	ldr	r1, [r6]
+;             while i2c.isr().read().stopf().bit_is_clear() {}
+ 800031a: 0689         	lsls	r1, r1, #0x1a
+ 800031c: d5fc         	bpl	0x8000318 <RTC+0x198>   @ imm = #-0x8
+;         intrinsics::volatile_load(src)
+ 800031e: 6831         	ldr	r1, [r6]
+ 8000320: 2330         	movs	r3, #0x30
+;             if isr.nackf().bit_is_clear() {
+ 8000322: 06c9         	lsls	r1, r1, #0x1b
+ 8000324: d4f3         	bmi	0x800030e <RTC+0x18e>   @ imm = #-0x1a
+ 8000326: 2020         	movs	r0, #0x20
+;         intrinsics::volatile_store(dst, src);
+ 8000328: 6070         	str	r0, [r6, #0x4]
+;                     $func($($args),*)
+ 800032a: f000 fd4d    	bl	0x8000dc8 <__primask_r> @ imm = #0xa9a
+ 800032e: 4605         	mov	r5, r0
+ 8000330: f000 fd39    	bl	0x8000da6 <__cpsid>     @ imm = #0xa72
+;                 ctx.shared.encoder_count.lock(|c| *c = KNOWN_TEST_VALUE);
+ 8000334: 48bf         	ldr	r0, [pc, #0x2fc]        @ 0x8000634 <RTC+0x4b4>
+ 8000336: 49c6         	ldr	r1, [pc, #0x318]        @ 0x8000650 <RTC+0x4d0>
+ 8000338: 6008         	str	r0, [r1]
+ 800033a: e038         	b	0x80003ae <RTC+0x22e>   @ imm = #0x70
+ 800033c: 2000         	movs	r0, #0x0
+;                 let mut buf = [0u8; 4];
+ 800033e: 900d         	str	r0, [sp, #0x34]
+ 8000340: 9d01         	ldr	r5, [sp, #0x4]
+ 8000342: 4bbd         	ldr	r3, [pc, #0x2f4]        @ 0x8000638 <RTC+0x4b8>
+ 8000344: 4ebd         	ldr	r6, [pc, #0x2f4]        @ 0x800063c <RTC+0x4bc>
+;         intrinsics::volatile_load(src)
+ 8000346: 6831         	ldr	r1, [r6]
+;             while i2c.isr().read().busy().bit_is_set() {}
+ 8000348: 4229         	tst	r1, r5
+ 800034a: d1fc         	bne	0x8000346 <RTC+0x1c6>   @ imm = #-0x8
+;         intrinsics::volatile_store(dst, src);
+ 800034c: 4632         	mov	r2, r6
+ 800034e: 3a14         	subs	r2, #0x14
+ 8000350: 6013         	str	r3, [r2]
+;         intrinsics::volatile_load(src)
+ 8000352: 6831         	ldr	r1, [r6]
+;             while i2c.isr().read().stopf().bit_is_clear() {}
+ 8000354: 0689         	lsls	r1, r1, #0x1a
+ 8000356: d5fc         	bpl	0x8000352 <RTC+0x1d2>   @ imm = #-0x8
+;         intrinsics::volatile_load(src)
+ 8000358: 6831         	ldr	r1, [r6]
+;             if isr.nackf().bit_is_clear() {
+ 800035a: 06c9         	lsls	r1, r1, #0x1b
+ 800035c: d502         	bpl	0x8000364 <RTC+0x1e4>   @ imm = #0x4
+ 800035e: 2130         	movs	r1, #0x30
+;         intrinsics::volatile_store(dst, src);
+ 8000360: 6071         	str	r1, [r6, #0x4]
+;         loop {
+ 8000362: e7f0         	b	0x8000346 <RTC+0x1c6>   @ imm = #-0x20
+ 8000364: 2120         	movs	r1, #0x20
+;         intrinsics::volatile_store(dst, src);
+ 8000366: 6071         	str	r1, [r6, #0x4]
+;         intrinsics::volatile_load(src)
+ 8000368: 6833         	ldr	r3, [r6]
+;             while i2c.isr().read().busy().bit_is_set() {}
+ 800036a: 422b         	tst	r3, r5
+ 800036c: d1fc         	bne	0x8000368 <RTC+0x1e8>   @ imm = #-0x8
+;         intrinsics::volatile_store(dst, src);
+ 800036e: 4bbb         	ldr	r3, [pc, #0x2ec]        @ 0x800065c <RTC+0x4dc>
+ 8000370: 6013         	str	r3, [r2]
+;         intrinsics::volatile_load(src)
+ 8000372: 6833         	ldr	r3, [r6]
+;             while i2c.isr().read().txis().bit_is_clear() {}
+ 8000374: 079b         	lsls	r3, r3, #0x1e
+ 8000376: d5fc         	bpl	0x8000372 <RTC+0x1f2>   @ imm = #-0x8
+;         intrinsics::volatile_store(dst, src);
+ 8000378: 6130         	str	r0, [r6, #0x10]
+;         intrinsics::volatile_load(src)
+ 800037a: 6833         	ldr	r3, [r6]
+;             while i2c.isr().read().tc().bit_is_clear() {}
+ 800037c: 065b         	lsls	r3, r3, #0x19
+ 800037e: d5fc         	bpl	0x800037a <RTC+0x1fa>   @ imm = #-0x8
+;         intrinsics::volatile_store(dst, src);
+ 8000380: 4bb7         	ldr	r3, [pc, #0x2dc]        @ 0x8000660 <RTC+0x4e0>
+ 8000382: 6013         	str	r3, [r2]
+;         intrinsics::volatile_load(src)
+ 8000384: 6832         	ldr	r2, [r6]
+;                 while i2c.isr().read().rxne().bit_is_clear() {}
+ 8000386: 0752         	lsls	r2, r2, #0x1d
+ 8000388: d5fc         	bpl	0x8000384 <RTC+0x204>   @ imm = #-0x8
+;         intrinsics::volatile_load(src)
+ 800038a: 68f2         	ldr	r2, [r6, #0xc]
+ 800038c: ab0d         	add	r3, sp, #0x34
+;                 *b = i2c.rxdr().read().bits() as u8;
+ 800038e: 541a         	strb	r2, [r3, r0]
+;         unsafe { transmute(intrinsics::offset(self.as_ptr(), count)) }
+ 8000390: 1c40         	adds	r0, r0, #0x1
+;                         if ptr == crate::intrinsics::transmute::<$ptr, NonNull<T>>(end_or_len) {
+ 8000392: 2804         	cmp	r0, #0x4
+ 8000394: d1f6         	bne	0x8000384 <RTC+0x204>   @ imm = #-0x14
+;         intrinsics::volatile_load(src)
+ 8000396: 6830         	ldr	r0, [r6]
+;             while i2c.isr().read().stopf().bit_is_clear() {}
+ 8000398: 0680         	lsls	r0, r0, #0x1a
+ 800039a: d5fc         	bpl	0x8000396 <RTC+0x216>   @ imm = #-0x8
+;         intrinsics::volatile_store(dst, src);
+ 800039c: 6071         	str	r1, [r6, #0x4]
+;                 let loaded_count = i32::from_le_bytes(buf);
+ 800039e: 9e0d         	ldr	r6, [sp, #0x34]
+;                     $func($($args),*)
+ 80003a0: f000 fd12    	bl	0x8000dc8 <__primask_r> @ imm = #0xa24
+ 80003a4: 4605         	mov	r5, r0
+ 80003a6: f000 fcfe    	bl	0x8000da6 <__cpsid>     @ imm = #0x9fc
+;                 ctx.shared.encoder_count.lock(|c| *c = loaded_count);
+ 80003aa: 48a9         	ldr	r0, [pc, #0x2a4]        @ 0x8000650 <RTC+0x4d0>
+ 80003ac: 6006         	str	r6, [r0]
+ 80003ae: 07e8         	lsls	r0, r5, #0x1f
+ 80003b0: d101         	bne	0x80003b6 <RTC+0x236>   @ imm = #0x2
+ 80003b2: f000 fcfa    	bl	0x8000daa <__cpsie>     @ imm = #0x9f4
+;                     $func($($args),*)
+ 80003b6: f000 fd07    	bl	0x8000dc8 <__primask_r> @ imm = #0xa0e
+ 80003ba: 4605         	mov	r5, r0
+ 80003bc: f000 fcf3    	bl	0x8000da6 <__cpsid>     @ imm = #0x9e6
+;         let count = ctx.shared.encoder_count.lock(|c| *c);
+ 80003c0: 48a3         	ldr	r0, [pc, #0x28c]        @ 0x8000650 <RTC+0x4d0>
+ 80003c2: 6804         	ldr	r4, [r0]
+;     if primask.is_active() {
+ 80003c4: 07e8         	lsls	r0, r5, #0x1f
+ 80003c6: d101         	bne	0x80003cc <RTC+0x24c>   @ imm = #0x2
+;                     $func($($args),*)
+ 80003c8: f000 fcef    	bl	0x8000daa <__cpsie>     @ imm = #0x9de
+ 80003cc: 2000         	movs	r0, #0x0
+;         let mut data = [0u8; 16];
+ 80003ce: 9010         	str	r0, [sp, #0x40]
+ 80003d0: 900f         	str	r0, [sp, #0x3c]
+ 80003d2: 900e         	str	r0, [sp, #0x38]
+ 80003d4: 9009         	str	r0, [sp, #0x24]
+ 80003d6: 900d         	str	r0, [sp, #0x34]
+;              if self.is_negative() {
+ 80003d8: 17e0         	asrs	r0, r4, #0x1f
+ 80003da: 9405         	str	r4, [sp, #0x14]
+ 80003dc: 4621         	mov	r1, r4
+ 80003de: 4041         	eors	r1, r0
+ 80003e0: 1a0c         	subs	r4, r1, r0
+ 80003e2: 260e         	movs	r6, #0xe
+ 80003e4: 250a         	movs	r5, #0xa
+;             value /= 10;
+ 80003e6: 4620         	mov	r0, r4
+ 80003e8: 4629         	mov	r1, r5
+ 80003ea: f000 fcf0    	bl	0x8000dce <__aeabi_uidiv> @ imm = #0x9e0
+;             let digit = (value % 10) as usize;
+ 80003ee: 4345         	muls	r5, r0, r5
+ 80003f0: 1b61         	subs	r1, r4, r5
+;             data[(7 - i) * 2] = FONT[digit];
+ 80003f2: 4a9c         	ldr	r2, [pc, #0x270]        @ 0x8000664 <RTC+0x4e4>
+ 80003f4: 5c51         	ldrb	r1, [r2, r1]
+ 80003f6: aa0d         	add	r2, sp, #0x34
+;             data[(7 - i) * 2] = FONT[digit];
+ 80003f8: 5591         	strb	r1, [r2, r6]
+;             fn lt(&self, other: &Self) -> bool { *self <  *other }
+ 80003fa: 1eb6         	subs	r6, r6, #0x2
+;         if self.start < self.end {
+ 80003fc: 2e02         	cmp	r6, #0x2
+ 80003fe: 4604         	mov	r4, r0
+ 8000400: d1f0         	bne	0x80003e4 <RTC+0x264>   @ imm = #-0x20
+;         if negative {
+ 8000402: 9805         	ldr	r0, [sp, #0x14]
+ 8000404: 2800         	cmp	r0, #0x0
+ 8000406: d502         	bpl	0x800040e <RTC+0x28e>   @ imm = #0x4
+ 8000408: a80d         	add	r0, sp, #0x34
+ 800040a: 2140         	movs	r1, #0x40
+;             data[2] = 0x40;
+ 800040c: 7081         	strb	r1, [r0, #0x2]
+;         intrinsics::volatile_store(dst, src);
+ 800040e: 9804         	ldr	r0, [sp, #0x10]
+ 8000410: 990c         	ldr	r1, [sp, #0x30]
+ 8000412: 6188         	str	r0, [r1, #0x18]
+ 8000414: 2640         	movs	r6, #0x40
+ 8000416: 2508         	movs	r5, #0x8
+ 8000418: 4a89         	ldr	r2, [pc, #0x224]        @ 0x8000640 <RTC+0x4c0>
+ 800041a: 980b         	ldr	r0, [sp, #0x2c]
+ 800041c: 6188         	str	r0, [r1, #0x18]
+;         if (data & 1) != 0 {
+ 800041e: 07f0         	lsls	r0, r6, #0x1f
+ 8000420: d106         	bne	0x8000430 <RTC+0x2b0>   @ imm = #0xc
+;         intrinsics::volatile_store(dst, src);
+ 8000422: 9807         	ldr	r0, [sp, #0x1c]
+ 8000424: 6188         	str	r0, [r1, #0x18]
+;         intrinsics::volatile_load(src)
+ 8000426: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000428: 4010         	ands	r0, r2
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 800042a: 9a08         	ldr	r2, [sp, #0x20]
+ 800042c: 4310         	orrs	r0, r2
+;             dio_low(); // drive low
+ 800042e: e001         	b	0x8000434 <RTC+0x2b4>   @ imm = #0x2
+;         intrinsics::volatile_load(src)
+ 8000430: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000432: 4010         	ands	r0, r2
+ 8000434: 6008         	str	r0, [r1]
+;                     $func($($args),*)
+ 8000436: f000 fcc5    	bl	0x8000dc4 <__nop>       @ imm = #0x98a
+ 800043a: f000 fcc3    	bl	0x8000dc4 <__nop>       @ imm = #0x986
+ 800043e: 2420         	movs	r4, #0x20
+;         intrinsics::volatile_store(dst, src);
+ 8000440: 980c         	ldr	r0, [sp, #0x30]
+ 8000442: 6184         	str	r4, [r0, #0x18]
+;                     $func($($args),*)
+ 8000444: f000 fcbe    	bl	0x8000dc4 <__nop>       @ imm = #0x97c
+ 8000448: f000 fcbc    	bl	0x8000dc4 <__nop>       @ imm = #0x978
+ 800044c: 990c         	ldr	r1, [sp, #0x30]
+;         data >>= 1;
+ 800044e: 0876         	lsrs	r6, r6, #0x1
+;             fn lt(&self, other: &Self) -> bool { *self <  *other }
+ 8000450: 1e6d         	subs	r5, r5, #0x1
+ 8000452: 4a7b         	ldr	r2, [pc, #0x1ec]        @ 0x8000640 <RTC+0x4c0>
+;         if self.start < self.end {
+ 8000454: d1e1         	bne	0x800041a <RTC+0x29a>   @ imm = #-0x3e
+;         intrinsics::volatile_load(src)
+ 8000456: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000458: 4010         	ands	r0, r2
+;         intrinsics::volatile_store(dst, src);
+ 800045a: 6008         	str	r0, [r1]
+ 800045c: 980b         	ldr	r0, [sp, #0x2c]
+ 800045e: 6188         	str	r0, [r1, #0x18]
+ 8000460: 9806         	ldr	r0, [sp, #0x18]
+ 8000462: 6188         	str	r0, [r1, #0x18]
+ 8000464: 9804         	ldr	r0, [sp, #0x10]
+ 8000466: 6188         	str	r0, [r1, #0x18]
+ 8000468: 20c0         	movs	r0, #0xc0
+ 800046a: 2608         	movs	r6, #0x8
+ 800046c: 9b0b         	ldr	r3, [sp, #0x2c]
+ 800046e: 618b         	str	r3, [r1, #0x18]
+ 8000470: 4605         	mov	r5, r0
+;         if (data & 1) != 0 {
+ 8000472: 07c0         	lsls	r0, r0, #0x1f
+ 8000474: d106         	bne	0x8000484 <RTC+0x304>   @ imm = #0xc
+;         intrinsics::volatile_store(dst, src);
+ 8000476: 9807         	ldr	r0, [sp, #0x1c]
+ 8000478: 6188         	str	r0, [r1, #0x18]
+;         intrinsics::volatile_load(src)
+ 800047a: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 800047c: 4010         	ands	r0, r2
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 800047e: 9a08         	ldr	r2, [sp, #0x20]
+ 8000480: 4310         	orrs	r0, r2
+;             dio_low(); // drive low
+ 8000482: e001         	b	0x8000488 <RTC+0x308>   @ imm = #0x2
+;         intrinsics::volatile_load(src)
+ 8000484: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000486: 4010         	ands	r0, r2
+ 8000488: 6008         	str	r0, [r1]
+;                     $func($($args),*)
+ 800048a: f000 fc9b    	bl	0x8000dc4 <__nop>       @ imm = #0x936
+ 800048e: f000 fc99    	bl	0x8000dc4 <__nop>       @ imm = #0x932
+;         intrinsics::volatile_store(dst, src);
+ 8000492: 980c         	ldr	r0, [sp, #0x30]
+ 8000494: 6184         	str	r4, [r0, #0x18]
+;                     $func($($args),*)
+ 8000496: f000 fc95    	bl	0x8000dc4 <__nop>       @ imm = #0x92a
+ 800049a: f000 fc93    	bl	0x8000dc4 <__nop>       @ imm = #0x926
+ 800049e: 990c         	ldr	r1, [sp, #0x30]
+;         data >>= 1;
+ 80004a0: 0868         	lsrs	r0, r5, #0x1
+;             fn lt(&self, other: &Self) -> bool { *self <  *other }
+ 80004a2: 1e76         	subs	r6, r6, #0x1
+ 80004a4: 4a66         	ldr	r2, [pc, #0x198]        @ 0x8000640 <RTC+0x4c0>
+;         if self.start < self.end {
+ 80004a6: d1e1         	bne	0x800046c <RTC+0x2ec>   @ imm = #-0x3e
+;         intrinsics::volatile_load(src)
+ 80004a8: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80004aa: 4010         	ands	r0, r2
+;         intrinsics::volatile_store(dst, src);
+ 80004ac: 6008         	str	r0, [r1]
+ 80004ae: 980b         	ldr	r0, [sp, #0x2c]
+ 80004b0: 6188         	str	r0, [r1, #0x18]
+ 80004b2: 9b09         	ldr	r3, [sp, #0x24]
+ 80004b4: a80d         	add	r0, sp, #0x34
+ 80004b6: 9309         	str	r3, [sp, #0x24]
+;         for &b in data {
+ 80004b8: 5cc6         	ldrb	r6, [r0, r3]
+ 80004ba: 2508         	movs	r5, #0x8
+;         intrinsics::volatile_store(dst, src);
+ 80004bc: 980b         	ldr	r0, [sp, #0x2c]
+ 80004be: 6188         	str	r0, [r1, #0x18]
+;         if (data & 1) != 0 {
+ 80004c0: 07f0         	lsls	r0, r6, #0x1f
+ 80004c2: d10d         	bne	0x80004e0 <RTC+0x360>   @ imm = #0x1a
+;         intrinsics::volatile_store(dst, src);
+ 80004c4: 9807         	ldr	r0, [sp, #0x1c]
+ 80004c6: 6188         	str	r0, [r1, #0x18]
+;         intrinsics::volatile_load(src)
+ 80004c8: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80004ca: 4010         	ands	r0, r2
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 80004cc: 9a08         	ldr	r2, [sp, #0x20]
+ 80004ce: 4310         	orrs	r0, r2
+;             dio_low(); // drive low
+ 80004d0: e008         	b	0x80004e4 <RTC+0x364>   @ imm = #0x10
+ 80004d2: 46c0         	mov	r8, r8
+ 80004d4: 20 00 00 20  	.word	0x20000020
+ 80004d8: 2c 00 00 20  	.word	0x2000002c
+ 80004dc: ff 3f ff ff  	.word	0xffff3fff
+;         intrinsics::volatile_load(src)
+ 80004e0: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80004e2: 4010         	ands	r0, r2
+ 80004e4: 6008         	str	r0, [r1]
+;                     $func($($args),*)
+ 80004e6: f000 fc6d    	bl	0x8000dc4 <__nop>       @ imm = #0x8da
+ 80004ea: f000 fc6b    	bl	0x8000dc4 <__nop>       @ imm = #0x8d6
+;         intrinsics::volatile_store(dst, src);
+ 80004ee: 980c         	ldr	r0, [sp, #0x30]
+ 80004f0: 6184         	str	r4, [r0, #0x18]
+;                     $func($($args),*)
+ 80004f2: f000 fc67    	bl	0x8000dc4 <__nop>       @ imm = #0x8ce
+ 80004f6: f000 fc65    	bl	0x8000dc4 <__nop>       @ imm = #0x8ca
+ 80004fa: 990c         	ldr	r1, [sp, #0x30]
+;         data >>= 1;
+ 80004fc: 0876         	lsrs	r6, r6, #0x1
+;             fn lt(&self, other: &Self) -> bool { *self <  *other }
+ 80004fe: 1e6d         	subs	r5, r5, #0x1
+ 8000500: 4a4f         	ldr	r2, [pc, #0x13c]        @ 0x8000640 <RTC+0x4c0>
+;         if self.start < self.end {
+ 8000502: d1db         	bne	0x80004bc <RTC+0x33c>   @ imm = #-0x4a
+;         intrinsics::volatile_load(src)
+ 8000504: 6808         	ldr	r0, [r1]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000506: 4010         	ands	r0, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000508: 6008         	str	r0, [r1]
+ 800050a: 980b         	ldr	r0, [sp, #0x2c]
+ 800050c: 6188         	str	r0, [r1, #0x18]
+ 800050e: 9b09         	ldr	r3, [sp, #0x24]
+;         unsafe { transmute(intrinsics::offset(self.as_ptr(), count)) }
+ 8000510: 1c5b         	adds	r3, r3, #0x1
+;                         if ptr == crate::intrinsics::transmute::<$ptr, NonNull<T>>(end_or_len) {
+ 8000512: 2b10         	cmp	r3, #0x10
+ 8000514: d1ce         	bne	0x80004b4 <RTC+0x334>   @ imm = #-0x64
+;         intrinsics::volatile_store(dst, src);
+ 8000516: 9806         	ldr	r0, [sp, #0x18]
+ 8000518: 6188         	str	r0, [r1, #0x18]
+;                     $func($($args),*)
+ 800051a: f000 fc55    	bl	0x8000dc8 <__primask_r> @ imm = #0x8aa
+ 800051e: 4605         	mov	r5, r0
+;     if r & (1 << 0) == (1 << 0) {
+ 8000520: 980a         	ldr	r0, [sp, #0x28]
+ 8000522: 4005         	ands	r5, r0
+;                     $func($($args),*)
+ 8000524: f000 fc3f    	bl	0x8000da6 <__cpsid>     @ imm = #0x87e
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000528: 484f         	ldr	r0, [pc, #0x13c]        @ 0x8000668 <RTC+0x4e8>
+ 800052a: 7800         	ldrb	r0, [r0]
+ 800052c: 2600         	movs	r6, #0x0
+ 800052e: 2801         	cmp	r0, #0x1
+ 8000530: 4634         	mov	r4, r6
+ 8000532: d10b         	bne	0x800054c <RTC+0x3cc>   @ imm = #0x16
+ 8000534: 494d         	ldr	r1, [pc, #0x134]        @ 0x800066c <RTC+0x4ec>
+;         Self::Instant::from_ticks(self.cnt)
+ 8000536: 680e         	ldr	r6, [r1]
+ 8000538: 684c         	ldr	r4, [r1, #0x4]
+;         intrinsics::volatile_load(src)
+ 800053a: 484d         	ldr	r0, [pc, #0x134]        @ 0x8000670 <RTC+0x4f0>
+ 800053c: 6800         	ldr	r0, [r0]
+;         if self.systick.has_wrapped() {
+ 800053e: 03c0         	lsls	r0, r0, #0xf
+ 8000540: d504         	bpl	0x800054c <RTC+0x3cc>   @ imm = #0x8
+ 8000542: 2000         	movs	r0, #0x0
+;             intrinsics::wrapping_add(self, rhs)
+ 8000544: 1c76         	adds	r6, r6, #0x1
+;             self.cnt = self.cnt.wrapping_add(1);
+ 8000546: 600e         	str	r6, [r1]
+;             intrinsics::wrapping_add(self, rhs)
+ 8000548: 4144         	adcs	r4, r0
+;             self.cnt = self.cnt.wrapping_add(1);
+ 800054a: 604c         	str	r4, [r1, #0x4]
+;     if primask.is_active() {
+ 800054c: 2d00         	cmp	r5, #0x0
+ 800054e: d101         	bne	0x8000554 <RTC+0x3d4>   @ imm = #0x2
+;                     $func($($args),*)
+ 8000550: f000 fc2b    	bl	0x8000daa <__cpsie>     @ imm = #0x856
+ 8000554: 2000         	movs	r0, #0x0
+;             intrinsics::wrapping_add(self, rhs)
+ 8000556: 3664         	adds	r6, #0x64
+ 8000558: 9606         	str	r6, [sp, #0x18]
+ 800055a: 9005         	str	r0, [sp, #0x14]
+;             intrinsics::wrapping_add(self, rhs)
+ 800055c: 4144         	adcs	r4, r0
+ 800055e: 9409         	str	r4, [sp, #0x24]
+;                     $func($($args),*)
+ 8000560: f000 fc32    	bl	0x8000dc8 <__primask_r> @ imm = #0x864
+ 8000564: 4605         	mov	r5, r0
+ 8000566: f000 fc1e    	bl	0x8000da6 <__cpsid>     @ imm = #0x83c
+ 800056a: 4836         	ldr	r0, [pc, #0xd8]         @ 0x8000644 <RTC+0x4c4>
+;             Relaxed => intrinsics::atomic_load::<T, { AO::Relaxed }>(dst),
+ 800056c: 6806         	ldr	r6, [r0]
+;             Acquire => intrinsics::atomic_load::<T, { AO::Acquire }>(dst),
+ 800056e: 6844         	ldr	r4, [r0, #0x4]
+ 8000570: f3bf 8f5f    	dmb	sy
+;         if current_head == self.tail.load(Ordering::Acquire) {
+ 8000574: 42a6         	cmp	r6, r4
+ 8000576: d009         	beq	0x800058c <RTC+0x40c>   @ imm = #0x12
+ 8000578: 4a32         	ldr	r2, [pc, #0xc8]         @ 0x8000644 <RTC+0x4c4>
+;             slice_get_unchecked(slice, self)
+ 800057a: 1990         	adds	r0, r2, r6
+;         crate::intrinsics::read_via_copy(src)
+ 800057c: 7a00         	ldrb	r0, [r0, #0x8]
+;         (val + 1) % N
+ 800057e: 9002         	str	r0, [sp, #0x8]
+ 8000580: 4630         	mov	r0, r6
+ 8000582: 990a         	ldr	r1, [sp, #0x28]
+ 8000584: 4048         	eors	r0, r1
+;             Release => intrinsics::atomic_store::<T, { AO::Release }>(dst, val),
+ 8000586: f3bf 8f5f    	dmb	sy
+ 800058a: 6010         	str	r0, [r2]
+ 800058c: 980a         	ldr	r0, [sp, #0x28]
+ 800058e: 4005         	ands	r5, r0
+;     if primask.is_active() {
+ 8000590: d101         	bne	0x8000596 <RTC+0x416>   @ imm = #0x2
+;                     $func($($args),*)
+ 8000592: f000 fc0a    	bl	0x8000daa <__cpsie>     @ imm = #0x814
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000596: 42a6         	cmp	r6, r4
+ 8000598: 9c0a         	ldr	r4, [sp, #0x28]
+ 800059a: d03e         	beq	0x800061a <RTC+0x49a>   @ imm = #0x7c
+;                     $func($($args),*)
+ 800059c: f000 fc14    	bl	0x8000dc8 <__primask_r> @ imm = #0x828
+ 80005a0: 9003         	str	r0, [sp, #0xc]
+ 80005a2: f000 fc00    	bl	0x8000da6 <__cpsid>     @ imm = #0x800
+ 80005a6: 4a33         	ldr	r2, [pc, #0xcc]         @ 0x8000674 <RTC+0x4f4>
+;         crate::intrinsics::read_via_copy(src)
+ 80005a8: 6811         	ldr	r1, [r2]
+;             intrinsics::wrapping_add(self, rhs)
+ 80005aa: 1c48         	adds	r0, r1, #0x1
+;         intrinsics::write_via_move(dst, src)
+ 80005ac: 6010         	str	r0, [r2]
+ 80005ae: 4b32         	ldr	r3, [pc, #0xc8]         @ 0x8000678 <RTC+0x4f8>
+;         self.head
+ 80005b0: 8b18         	ldrh	r0, [r3, #0x18]
+;         match self {
+ 80005b2: 4a32         	ldr	r2, [pc, #0xc8]         @ 0x800067c <RTC+0x4fc>
+ 80005b4: 4290         	cmp	r0, r2
+ 80005b6: 9e09         	ldr	r6, [sp, #0x24]
+ 80005b8: 9d06         	ldr	r5, [sp, #0x18]
+;         match self {
+ 80005ba: d013         	beq	0x80005e4 <RTC+0x464>   @ imm = #0x26
+;                 Some(self.const_cmp(*other))
+ 80005bc: cb05         	ldm	r3!, {r0, r2}
+ 80005be: 3b08         	subs	r3, #0x8
+;                 if self.ticks == other.ticks {
+ 80005c0: 1a28         	subs	r0, r5, r0
+ 80005c2: 4630         	mov	r0, r6
+ 80005c4: 4190         	sbcs	r0, r2
+;         if if_heap_max_greater_than_nr {
+ 80005c6: d40d         	bmi	0x80005e4 <RTC+0x464>   @ imm = #0x1a
+;         let new = self.free.get_unchecked();
+ 80005c8: 8b58         	ldrh	r0, [r3, #0x1a]
+ 80005ca: 2218         	movs	r2, #0x18
+;         unsafe { slice_get_unchecked(slice, self) }
+ 80005cc: 4342         	muls	r2, r0, r2
+;         intrinsics::write_via_move(dst, src)
+ 80005ce: 509d         	str	r5, [r3, r2]
+;         unsafe { slice_get_unchecked(slice, self) }
+ 80005d0: 189a         	adds	r2, r3, r2
+;         intrinsics::write_via_move(dst, src)
+ 80005d2: 9d02         	ldr	r5, [sp, #0x8]
+ 80005d4: 7315         	strb	r5, [r2, #0xc]
+ 80005d6: 6056         	str	r6, [r2, #0x4]
+ 80005d8: 6091         	str	r1, [r2, #0x8]
+;         self.free = self.node_at(new).next;
+ 80005da: 8a19         	ldrh	r1, [r3, #0x10]
+ 80005dc: 8359         	strh	r1, [r3, #0x1a]
+ 80005de: 9a05         	ldr	r2, [sp, #0x14]
+ 80005e0: 4611         	mov	r1, r2
+;     }
+ 80005e2: e00f         	b	0x8000604 <RTC+0x484>   @ imm = #0x1e
+ 80005e4: 06a0         	lsls	r0, r4, #0x1a
+;         intrinsics::volatile_store(dst, src);
+ 80005e6: 4a26         	ldr	r2, [pc, #0x98]         @ 0x8000680 <RTC+0x500>
+ 80005e8: 6010         	str	r0, [r2]
+;         let new = self.free.get_unchecked();
+ 80005ea: 8b58         	ldrh	r0, [r3, #0x1a]
+ 80005ec: 2218         	movs	r2, #0x18
+;         unsafe { slice_get_unchecked(slice, self) }
+ 80005ee: 4342         	muls	r2, r0, r2
+;         intrinsics::write_via_move(dst, src)
+ 80005f0: 509d         	str	r5, [r3, r2]
+;         unsafe { slice_get_unchecked(slice, self) }
+ 80005f2: 189a         	adds	r2, r3, r2
+;         intrinsics::write_via_move(dst, src)
+ 80005f4: 9d02         	ldr	r5, [sp, #0x8]
+ 80005f6: 7315         	strb	r5, [r2, #0xc]
+ 80005f8: 6056         	str	r6, [r2, #0x4]
+ 80005fa: 6091         	str	r1, [r2, #0x8]
+;         self.free = self.node_at(new).next;
+ 80005fc: 8a19         	ldrh	r1, [r3, #0x10]
+ 80005fe: 8359         	strh	r1, [r3, #0x1a]
+;         if let Some(head) = self.head.option() {
+ 8000600: 8b19         	ldrh	r1, [r3, #0x18]
+ 8000602: 9a05         	ldr	r2, [sp, #0x14]
+ 8000604: 9d03         	ldr	r5, [sp, #0xc]
+ 8000606: 4025         	ands	r5, r4
+ 8000608: 831a         	strh	r2, [r3, #0x18]
+ 800060a: 2218         	movs	r2, #0x18
+;         unsafe { slice_get_unchecked(slice, self) }
+ 800060c: 4342         	muls	r2, r0, r2
+ 800060e: 1898         	adds	r0, r3, r2
+ 8000610: 8201         	strh	r1, [r0, #0x10]
+;     if primask.is_active() {
+ 8000612: 2d00         	cmp	r5, #0x0
+ 8000614: d101         	bne	0x800061a <RTC+0x49a>   @ imm = #0x2
+;                     $func($($args),*)
+ 8000616: f000 fbc8    	bl	0x8000daa <__cpsie>     @ imm = #0x790
+ 800061a: 4a05         	ldr	r2, [pc, #0x14]         @ 0x8000630 <RTC+0x4b0>
+;             Relaxed => intrinsics::atomic_load::<T, { AO::Relaxed }>(dst),
+ 800061c: 6810         	ldr	r0, [r2]
+;             Acquire => intrinsics::atomic_load::<T, { AO::Acquire }>(dst),
+ 800061e: 6851         	ldr	r1, [r2, #0x4]
+ 8000620: f3bf 8f5f    	dmb	sy
+;         if current_head == self.tail.load(Ordering::Acquire) {
+ 8000624: 4288         	cmp	r0, r1
+ 8000626: 9b0c         	ldr	r3, [sp, #0x30]
+ 8000628: d000         	beq	0x800062c <RTC+0x4ac>   @ imm = #0x0
+ 800062a: e5c3         	b	0x80001b4 <RTC+0x34>    @ imm = #-0x47a
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 800062c: b011         	add	sp, #0x44
+ 800062e: bdf0         	pop	{r4, r5, r6, r7, pc}
+ 8000630: 20 00 00 20  	.word	0x20000020
+ 8000634: 32 79 06 00  	.word	0x00067932
+ 8000638: 50 20 00 02  	.word	0x02002050
+ 800063c: 18 54 00 40  	.word	0x40005418
+ 8000640: ff 3f ff ff  	.word	0xffff3fff
+ 8000644: 2c 00 00 20  	.word	0x2000002c
+ 8000648: 3c 00 00 20  	.word	0x2000003c
+ 800064c: 50 00 00 20  	.word	0x20000050
+ 8000650: 6c 02 00 20  	.word	0x2000026c
+ 8000654: 50 20 05 00  	.word	0x00052050
+ 8000658: ff 1f ff fb  	.word	0xfbff1fff
+ 800065c: 50 20 01 00  	.word	0x00012050
+ 8000660: 50 24 04 02  	.word	0x02042450
+ 8000664: e4 12 00 08  	.word	0x080012e4
+ 8000668: 40 00 00 20  	.word	0x20000040
+ 800066c: 48 00 00 20  	.word	0x20000048
+ 8000670: 10 e0 00 e0  	.word	0xe000e010
+ 8000674: 38 00 00 20  	.word	0x20000038
+ 8000678: 00 00 00 20  	.word	0x20000000
+ 800067c: ff ff 00 00  	.word	0x0000ffff
+ 8000680: 04 ed 00 e0  	.word	0xe000ed04
+
+08000684 <SysTick>:
+ 8000684: b5f0         	push	{r4, r5, r6, r7, lr}
+ 8000686: af03         	add	r7, sp, #0xc
+ 8000688: b087         	sub	sp, #0x1c
+ 800068a: 2001         	movs	r0, #0x1
+ 800068c: 43c1         	mvns	r1, r0
+ 800068e: 9100         	str	r1, [sp]
+ 8000690: 9005         	str	r0, [sp, #0x14]
+ 8000692: 0400         	lsls	r0, r0, #0x10
+ 8000694: 9001         	str	r0, [sp, #0x4]
+ 8000696: 4d48         	ldr	r5, [pc, #0x120]        @ 0x80007b8 <SysTick+0x134>
+;                     $func($($args),*)
+ 8000698: f000 fb96    	bl	0x8000dc8 <__primask_r> @ imm = #0x72c
+ 800069c: 4604         	mov	r4, r0
+;     if r & (1 << 0) == (1 << 0) {
+ 800069e: 9805         	ldr	r0, [sp, #0x14]
+ 80006a0: 4004         	ands	r4, r0
+;                     $func($($args),*)
+ 80006a2: f000 fb80    	bl	0x8000da6 <__cpsid>     @ imm = #0x700
+;         self.head
+ 80006a6: 8b29         	ldrh	r1, [r5, #0x18]
+ 80006a8: 2000         	movs	r0, #0x0
+;         match self {
+ 80006aa: 9006         	str	r0, [sp, #0x18]
+ 80006ac: 4843         	ldr	r0, [pc, #0x10c]        @ 0x80007bc <SysTick+0x138>
+ 80006ae: 4281         	cmp	r1, r0
+ 80006b0: d100         	bne	0x80006b4 <SysTick+0x30> @ imm = #0x0
+ 80006b2: e048         	b	0x8000746 <SysTick+0xc2> @ imm = #0x90
+ 80006b4: 9102         	str	r1, [sp, #0x8]
+;         if let Some(instant) = self.0.peek().map(|p| p.instant) {
+ 80006b6: 6828         	ldr	r0, [r5]
+ 80006b8: 9003         	str	r0, [sp, #0xc]
+ 80006ba: 6868         	ldr	r0, [r5, #0x4]
+ 80006bc: 9004         	str	r0, [sp, #0x10]
+ 80006be: 4840         	ldr	r0, [pc, #0x100]        @ 0x80007c0 <SysTick+0x13c>
+;         Self::Instant::from_ticks(self.cnt)
+ 80006c0: 6805         	ldr	r5, [r0]
+ 80006c2: 6842         	ldr	r2, [r0, #0x4]
+;         intrinsics::volatile_load(src)
+ 80006c4: 4b3b         	ldr	r3, [pc, #0xec]         @ 0x80007b4 <SysTick+0x130>
+ 80006c6: 681b         	ldr	r3, [r3]
+;         if self.systick.has_wrapped() {
+ 80006c8: 9e01         	ldr	r6, [sp, #0x4]
+ 80006ca: 4233         	tst	r3, r6
+ 80006cc: d004         	beq	0x80006d8 <SysTick+0x54> @ imm = #0x8
+ 80006ce: 2300         	movs	r3, #0x0
+;             intrinsics::wrapping_add(self, rhs)
+ 80006d0: 1c6d         	adds	r5, r5, #0x1
+;             self.cnt = self.cnt.wrapping_add(1);
+ 80006d2: 6005         	str	r5, [r0]
+;             intrinsics::wrapping_add(self, rhs)
+ 80006d4: 415a         	adcs	r2, r3
+;             self.cnt = self.cnt.wrapping_add(1);
+ 80006d6: 6042         	str	r2, [r0, #0x4]
+ 80006d8: 9e03         	ldr	r6, [sp, #0xc]
+;                 if self.ticks == other.ticks {
+ 80006da: 4633         	mov	r3, r6
+ 80006dc: 406b         	eors	r3, r5
+ 80006de: 9904         	ldr	r1, [sp, #0x10]
+ 80006e0: 4608         	mov	r0, r1
+ 80006e2: 4050         	eors	r0, r2
+ 80006e4: 4318         	orrs	r0, r3
+ 80006e6: 1b76         	subs	r6, r6, r5
+ 80006e8: 4191         	sbcs	r1, r2
+;             if instant <= mono.now() {
+ 80006ea: 2800         	cmp	r0, #0x0
+ 80006ec: d01e         	beq	0x800072c <SysTick+0xa8> @ imm = #0x3c
+ 80006ee: 9800         	ldr	r0, [sp]
+ 80006f0: 1b80         	subs	r0, r0, r6
+ 80006f2: 482f         	ldr	r0, [pc, #0xbc]         @ 0x80007b0 <SysTick+0x12c>
+ 80006f4: 4188         	sbcs	r0, r1
+ 80006f6: d319         	blo	0x800072c <SysTick+0xa8> @ imm = #0x32
+;         intrinsics::volatile_load(src)
+ 80006f8: 482e         	ldr	r0, [pc, #0xb8]         @ 0x80007b4 <SysTick+0x130>
+ 80006fa: 6800         	ldr	r0, [r0]
+;         if self.systick.has_wrapped() {
+ 80006fc: 9b01         	ldr	r3, [sp, #0x4]
+ 80006fe: 4218         	tst	r0, r3
+ 8000700: d021         	beq	0x8000746 <SysTick+0xc2> @ imm = #0x42
+ 8000702: 2600         	movs	r6, #0x0
+;             intrinsics::wrapping_add(self, rhs)
+ 8000704: 1c68         	adds	r0, r5, #0x1
+ 8000706: 4b2e         	ldr	r3, [pc, #0xb8]         @ 0x80007c0 <SysTick+0x13c>
+;             self.cnt = self.cnt.wrapping_add(1);
+ 8000708: 6018         	str	r0, [r3]
+ 800070a: 9606         	str	r6, [sp, #0x18]
+;             intrinsics::wrapping_add(self, rhs)
+ 800070c: 4172         	adcs	r2, r6
+;             self.cnt = self.cnt.wrapping_add(1);
+ 800070e: 605a         	str	r2, [r3, #0x4]
+ 8000710: 9b03         	ldr	r3, [sp, #0xc]
+;                 if self.ticks == other.ticks {
+ 8000712: 1a1e         	subs	r6, r3, r0
+ 8000714: 9904         	ldr	r1, [sp, #0x10]
+ 8000716: 460d         	mov	r5, r1
+ 8000718: 4195         	sbcs	r5, r2
+ 800071a: 404a         	eors	r2, r1
+ 800071c: 4043         	eors	r3, r0
+ 800071e: 4313         	orrs	r3, r2
+;                 if instant <= mono.now() {
+ 8000720: d004         	beq	0x800072c <SysTick+0xa8> @ imm = #0x8
+ 8000722: 9800         	ldr	r0, [sp]
+ 8000724: 1b80         	subs	r0, r0, r6
+ 8000726: 4822         	ldr	r0, [pc, #0x88]         @ 0x80007b0 <SysTick+0x12c>
+ 8000728: 41a8         	sbcs	r0, r5
+ 800072a: d20c         	bhs	0x8000746 <SysTick+0xc2> @ imm = #0x18
+ 800072c: 4a22         	ldr	r2, [pc, #0x88]         @ 0x80007b8 <SysTick+0x134>
+;         self.head = self.node_at(head).next;
+ 800072e: 8a10         	ldrh	r0, [r2, #0x10]
+ 8000730: 8310         	strh	r0, [r2, #0x18]
+;         self.node_at_mut(current).next = self.free;
+ 8000732: 8b50         	ldrh	r0, [r2, #0x1a]
+ 8000734: 9b02         	ldr	r3, [sp, #0x8]
+;         self.free = Idx::new_unchecked(current);
+ 8000736: 8353         	strh	r3, [r2, #0x1a]
+ 8000738: 2118         	movs	r1, #0x18
+;         unsafe { slice_get_unchecked(slice, self) }
+ 800073a: 4359         	muls	r1, r3, r1
+ 800073c: 1851         	adds	r1, r2, r1
+;         self.node_at_mut(current).next = self.free;
+ 800073e: 8208         	strh	r0, [r1, #0x10]
+;         crate::intrinsics::read_via_copy(src)
+ 8000740: 7b16         	ldrb	r6, [r2, #0xc]
+ 8000742: 9805         	ldr	r0, [sp, #0x14]
+ 8000744: 9006         	str	r0, [sp, #0x18]
+;     if primask.is_active() {
+ 8000746: 2c00         	cmp	r4, #0x0
+ 8000748: d101         	bne	0x800074e <SysTick+0xca> @ imm = #0x2
+;                     $func($($args),*)
+ 800074a: f000 fb2e    	bl	0x8000daa <__cpsie>     @ imm = #0x65c
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 800074e: f000 fb3b    	bl	0x8000dc8 <__primask_r> @ imm = #0x676
+ 8000752: 4604         	mov	r4, r0
+ 8000754: 2501         	movs	r5, #0x1
+ 8000756: 402c         	ands	r4, r5
+ 8000758: f000 fb25    	bl	0x8000da6 <__cpsid>     @ imm = #0x64a
+ 800075c: 9806         	ldr	r0, [sp, #0x18]
+ 800075e: 2800         	cmp	r0, #0x0
+ 8000760: d00f         	beq	0x8000782 <SysTick+0xfe> @ imm = #0x1e
+ 8000762: 4a19         	ldr	r2, [pc, #0x64]         @ 0x80007c8 <SysTick+0x144>
+;             Relaxed => intrinsics::atomic_load::<T, { AO::Relaxed }>(dst),
+ 8000764: 6850         	ldr	r0, [r2, #0x4]
+;             slice_get_unchecked(slice, self)
+ 8000766: 1811         	adds	r1, r2, r0
+;         intrinsics::write_via_move(dst, src)
+ 8000768: 720e         	strb	r6, [r1, #0x8]
+;         (val + 1) % N
+ 800076a: 4045         	eors	r5, r0
+;             Release => intrinsics::atomic_store::<T, { AO::Release }>(dst, val),
+ 800076c: f3bf 8f5f    	dmb	sy
+ 8000770: 6055         	str	r5, [r2, #0x4]
+;     if primask.is_active() {
+ 8000772: 2c00         	cmp	r4, #0x0
+ 8000774: d101         	bne	0x800077a <SysTick+0xf6> @ imm = #0x2
+;                     $func($($args),*)
+ 8000776: f000 fb18    	bl	0x8000daa <__cpsie>     @ imm = #0x630
+ 800077a: 2004         	movs	r0, #0x4
+;         intrinsics::volatile_store(dst, src);
+ 800077c: 4913         	ldr	r1, [pc, #0x4c]         @ 0x80007cc <SysTick+0x148>
+ 800077e: 6008         	str	r0, [r1]
+ 8000780: e789         	b	0x8000696 <SysTick+0x12> @ imm = #-0xee
+;         match *self {
+ 8000782: 4810         	ldr	r0, [pc, #0x40]         @ 0x80007c4 <SysTick+0x140>
+ 8000784: 7800         	ldrb	r0, [r0]
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000786: 2801         	cmp	r0, #0x1
+ 8000788: d10c         	bne	0x80007a4 <SysTick+0x120> @ imm = #0x18
+;         intrinsics::volatile_load(src)
+ 800078a: 480a         	ldr	r0, [pc, #0x28]         @ 0x80007b4 <SysTick+0x130>
+ 800078c: 6800         	ldr	r0, [r0]
+;         if self.systick.has_wrapped() {
+ 800078e: 9901         	ldr	r1, [sp, #0x4]
+ 8000790: 4208         	tst	r0, r1
+ 8000792: d007         	beq	0x80007a4 <SysTick+0x120> @ imm = #0xe
+ 8000794: 4a0a         	ldr	r2, [pc, #0x28]         @ 0x80007c0 <SysTick+0x13c>
+;             self.cnt = self.cnt.wrapping_add(1);
+ 8000796: 6810         	ldr	r0, [r2]
+ 8000798: 2100         	movs	r1, #0x0
+;             intrinsics::wrapping_add(self, rhs)
+ 800079a: 1c40         	adds	r0, r0, #0x1
+;             self.cnt = self.cnt.wrapping_add(1);
+ 800079c: 6010         	str	r0, [r2]
+ 800079e: 6850         	ldr	r0, [r2, #0x4]
+;             intrinsics::wrapping_add(self, rhs)
+ 80007a0: 4148         	adcs	r0, r1
+;             self.cnt = self.cnt.wrapping_add(1);
+ 80007a2: 6050         	str	r0, [r2, #0x4]
+;     if primask.is_active() {
+ 80007a4: 2c00         	cmp	r4, #0x0
+ 80007a6: d101         	bne	0x80007ac <SysTick+0x128> @ imm = #0x2
+;                     $func($($args),*)
+ 80007a8: f000 faff    	bl	0x8000daa <__cpsie>     @ imm = #0x5fe
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 80007ac: b007         	add	sp, #0x1c
+ 80007ae: bdf0         	pop	{r4, r5, r6, r7, pc}
+ 80007b0: ff ff ff 7f  	.word	0x7fffffff
+ 80007b4: 10 e0 00 e0  	.word	0xe000e010
+ 80007b8: 00 00 00 20  	.word	0x20000000
+ 80007bc: ff ff 00 00  	.word	0x0000ffff
+ 80007c0: 48 00 00 20  	.word	0x20000048
+ 80007c4: 40 00 00 20  	.word	0x20000040
+ 80007c8: 20 00 00 20  	.word	0x20000020
+ 80007cc: 00 e2 00 e0  	.word	0xe000e200
+
+080007d0 <USART1>:
+ 80007d0: b5f0         	push	{r4, r5, r6, r7, lr}
+ 80007d2: af03         	add	r7, sp, #0xc
+ 80007d4: b087         	sub	sp, #0x1c
+ 80007d6: 2001         	movs	r0, #0x1
+ 80007d8: 9006         	str	r0, [sp, #0x18]
+ 80007da: 0204         	lsls	r4, r0, #0x8
+ 80007dc: 4e5c         	ldr	r6, [pc, #0x170]        @ 0x8000950 <USART1+0x180>
+;         intrinsics::volatile_load(src)
+ 80007de: 69f0         	ldr	r0, [r6, #0x1c]
+;         while self.usart.isr().read().rxfne().bit_is_set() {
+ 80007e0: 0680         	lsls	r0, r0, #0x1a
+ 80007e2: d510         	bpl	0x8000806 <USART1+0x36> @ imm = #0x20
+ 80007e4: 2041         	movs	r0, #0x41
+ 80007e6: 00c0         	lsls	r0, r0, #0x3
+;             if self.rx_len < RX_BUF_SIZE {
+ 80007e8: 495a         	ldr	r1, [pc, #0x168]        @ 0x8000954 <USART1+0x184>
+ 80007ea: 580a         	ldr	r2, [r1, r0]
+;         intrinsics::volatile_load(src)
+ 80007ec: 6a73         	ldr	r3, [r6, #0x24]
+;             if self.rx_len < RX_BUF_SIZE {
+ 80007ee: 42a2         	cmp	r2, r4
+ 80007f0: d206         	bhs	0x8000800 <USART1+0x30> @ imm = #0xc
+;                 self.rx_buf[self.rx_len] = b;
+ 80007f2: 188a         	adds	r2, r1, r2
+ 80007f4: 2521         	movs	r5, #0x21
+ 80007f6: 00ed         	lsls	r5, r5, #0x3
+ 80007f8: 5553         	strb	r3, [r2, r5]
+;                 self.rx_len += 1;
+ 80007fa: 580a         	ldr	r2, [r1, r0]
+ 80007fc: 1c52         	adds	r2, r2, #0x1
+ 80007fe: 500a         	str	r2, [r1, r0]
+;         intrinsics::volatile_load(src)
+ 8000800: 69f3         	ldr	r3, [r6, #0x1c]
+;         while self.usart.isr().read().rxfne().bit_is_set() {
+ 8000802: 069b         	lsls	r3, r3, #0x1a
+ 8000804: d4f2         	bmi	0x80007ec <USART1+0x1c> @ imm = #-0x1c
+;         intrinsics::volatile_load(src)
+ 8000806: 69f0         	ldr	r0, [r6, #0x1c]
+ 8000808: 9005         	str	r0, [sp, #0x14]
+;         if isr.rtof().bit_is_set() {
+ 800080a: 0500         	lsls	r0, r0, #0x14
+ 800080c: d554         	bpl	0x80008b8 <USART1+0xe8> @ imm = #0xa8
+ 800080e: 9806         	ldr	r0, [sp, #0x18]
+ 8000810: 02c0         	lsls	r0, r0, #0xb
+;         intrinsics::volatile_load(src)
+ 8000812: 9004         	str	r0, [sp, #0x10]
+ 8000814: 69f0         	ldr	r0, [r6, #0x1c]
+;         while self.usart.isr().read().rxfne().bit_is_set() {
+ 8000816: 0680         	lsls	r0, r0, #0x1a
+ 8000818: d510         	bpl	0x800083c <USART1+0x6c> @ imm = #0x20
+ 800081a: 2041         	movs	r0, #0x41
+ 800081c: 00c1         	lsls	r1, r0, #0x3
+;             if self.rx_len < RX_BUF_SIZE {
+ 800081e: 4a4d         	ldr	r2, [pc, #0x134]        @ 0x8000954 <USART1+0x184>
+ 8000820: 5853         	ldr	r3, [r2, r1]
+;         intrinsics::volatile_load(src)
+ 8000822: 6a70         	ldr	r0, [r6, #0x24]
+;             if self.rx_len < RX_BUF_SIZE {
+ 8000824: 42a3         	cmp	r3, r4
+ 8000826: d206         	bhs	0x8000836 <USART1+0x66> @ imm = #0xc
+;                 self.rx_buf[self.rx_len] = b;
+ 8000828: 18d3         	adds	r3, r2, r3
+ 800082a: 2521         	movs	r5, #0x21
+ 800082c: 00ed         	lsls	r5, r5, #0x3
+ 800082e: 5558         	strb	r0, [r3, r5]
+;                 self.rx_len += 1;
+ 8000830: 5850         	ldr	r0, [r2, r1]
+ 8000832: 1c43         	adds	r3, r0, #0x1
+ 8000834: 5053         	str	r3, [r2, r1]
+;         intrinsics::volatile_load(src)
+ 8000836: 69f0         	ldr	r0, [r6, #0x1c]
+;         while self.usart.isr().read().rxfne().bit_is_set() {
+ 8000838: 0680         	lsls	r0, r0, #0x1a
+ 800083a: d4f2         	bmi	0x8000822 <USART1+0x52> @ imm = #-0x1c
+;         intrinsics::volatile_store(dst, src);
+ 800083c: 9804         	ldr	r0, [sp, #0x10]
+ 800083e: 6230         	str	r0, [r6, #0x20]
+ 8000840: 2083         	movs	r0, #0x83
+ 8000842: 0083         	lsls	r3, r0, #0x2
+;             if !self.tx_busy && self.rx_len > 0 {
+ 8000844: 4d43         	ldr	r5, [pc, #0x10c]        @ 0x8000954 <USART1+0x184>
+ 8000846: 5ce8         	ldrb	r0, [r5, r3]
+ 8000848: 2801         	cmp	r0, #0x1
+ 800084a: d035         	beq	0x80008b8 <USART1+0xe8> @ imm = #0x6a
+ 800084c: 2041         	movs	r0, #0x41
+ 800084e: 00c1         	lsls	r1, r0, #0x3
+;             if !self.tx_busy && self.rx_len > 0 {
+ 8000850: 586a         	ldr	r2, [r5, r1]
+ 8000852: 2a00         	cmp	r2, #0x0
+ 8000854: d030         	beq	0x80008b8 <USART1+0xe8> @ imm = #0x60
+ 8000856: 9102         	str	r1, [sp, #0x8]
+;                 self.tx_busy = true;
+ 8000858: 9906         	ldr	r1, [sp, #0x18]
+ 800085a: 9304         	str	r3, [sp, #0x10]
+ 800085c: 54e9         	strb	r1, [r5, r3]
+ 800085e: 0081         	lsls	r1, r0, #0x2
+ 8000860: 2000         	movs	r0, #0x0
+ 8000862: 9001         	str	r0, [sp, #0x4]
+ 8000864: 9103         	str	r1, [sp, #0xc]
+;                 self.tx_idx = 0;
+ 8000866: 5068         	str	r0, [r5, r1]
+;     }
+ 8000868: 2aff         	cmp	r2, #0xff
+ 800086a: d900         	bls	0x800086e <USART1+0x9e> @ imm = #0x0
+ 800086c: 4622         	mov	r2, r4
+;                 self.tx_len = self.rx_len.min(TX_BUF_SIZE);
+ 800086e: 512a         	str	r2, [r5, r4]
+ 8000870: 2021         	movs	r0, #0x21
+ 8000872: 00c0         	lsls	r0, r0, #0x3
+;     unsafe { crate::intrinsics::copy_nonoverlapping(src, dst, count) }
+ 8000874: 1829         	adds	r1, r5, r0
+ 8000876: 4628         	mov	r0, r5
+ 8000878: f000 fbc4    	bl	0x8001004 <__aeabi_memcpy4> @ imm = #0x788
+;         intrinsics::volatile_load(src)
+ 800087c: 69f0         	ldr	r0, [r6, #0x1c]
+;         while self.usart.isr().read().txfnf().bit_is_set()
+ 800087e: 0600         	lsls	r0, r0, #0x18
+ 8000880: 9a04         	ldr	r2, [sp, #0x10]
+ 8000882: 9b03         	ldr	r3, [sp, #0xc]
+ 8000884: d511         	bpl	0x80008aa <USART1+0xda> @ imm = #0x22
+ 8000886: 5ca8         	ldrb	r0, [r5, r2]
+ 8000888: 07c0         	lsls	r0, r0, #0x1f
+ 800088a: d00e         	beq	0x80008aa <USART1+0xda> @ imm = #0x1c
+;             && self.tx_idx < self.tx_len
+ 800088c: 58e8         	ldr	r0, [r5, r3]
+ 800088e: 9906         	ldr	r1, [sp, #0x18]
+ 8000890: 0209         	lsls	r1, r1, #0x8
+ 8000892: 5869         	ldr	r1, [r5, r1]
+ 8000894: 4288         	cmp	r0, r1
+ 8000896: d208         	bhs	0x80008aa <USART1+0xda> @ imm = #0x10
+;             let b = self.tx_buf[self.tx_idx];
+ 8000898: 42a0         	cmp	r0, r4
+ 800089a: d255         	bhs	0x8000948 <USART1+0x178> @ imm = #0xaa
+ 800089c: 5c29         	ldrb	r1, [r5, r0]
+;             self.tx_idx += 1;
+ 800089e: 1c40         	adds	r0, r0, #0x1
+ 80008a0: 50e8         	str	r0, [r5, r3]
+;         intrinsics::volatile_store(dst, src);
+ 80008a2: 62b1         	str	r1, [r6, #0x28]
+;         intrinsics::volatile_load(src)
+ 80008a4: 69f0         	ldr	r0, [r6, #0x1c]
+;         while self.usart.isr().read().txfnf().bit_is_set()
+ 80008a6: 0600         	lsls	r0, r0, #0x18
+ 80008a8: d4ed         	bmi	0x8000886 <USART1+0xb6> @ imm = #-0x26
+;         intrinsics::volatile_load(src)
+ 80008aa: 6830         	ldr	r0, [r6]
+ 80008ac: 2180         	movs	r1, #0x80
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 80008ae: 4301         	orrs	r1, r0
+;         intrinsics::volatile_store(dst, src);
+ 80008b0: 6031         	str	r1, [r6]
+;                 self.rx_len = 0;
+ 80008b2: 9802         	ldr	r0, [sp, #0x8]
+ 80008b4: 9901         	ldr	r1, [sp, #0x4]
+ 80008b6: 5029         	str	r1, [r5, r0]
+;         intrinsics::volatile_load(src)
+ 80008b8: 69f3         	ldr	r3, [r6, #0x1c]
+ 80008ba: 2083         	movs	r0, #0x83
+ 80008bc: 0081         	lsls	r1, r0, #0x2
+ 80008be: 4a25         	ldr	r2, [pc, #0x94]         @ 0x8000954 <USART1+0x184>
+ 80008c0: 5c50         	ldrb	r0, [r2, r1]
+;         while self.usart.isr().read().txfnf().bit_is_set()
+ 80008c2: 061b         	lsls	r3, r3, #0x18
+ 80008c4: d511         	bpl	0x80008ea <USART1+0x11a> @ imm = #0x22
+ 80008c6: 07c3         	lsls	r3, r0, #0x1f
+ 80008c8: d00f         	beq	0x80008ea <USART1+0x11a> @ imm = #0x1e
+ 80008ca: 2041         	movs	r0, #0x41
+ 80008cc: 0083         	lsls	r3, r0, #0x2
+;             && self.tx_idx < self.tx_len
+ 80008ce: 58d0         	ldr	r0, [r2, r3]
+ 80008d0: 9d06         	ldr	r5, [sp, #0x18]
+ 80008d2: 022d         	lsls	r5, r5, #0x8
+ 80008d4: 5955         	ldr	r5, [r2, r5]
+ 80008d6: 42a8         	cmp	r0, r5
+ 80008d8: d211         	bhs	0x80008fe <USART1+0x12e> @ imm = #0x22
+;             let b = self.tx_buf[self.tx_idx];
+ 80008da: 42a0         	cmp	r0, r4
+ 80008dc: d234         	bhs	0x8000948 <USART1+0x178> @ imm = #0x68
+ 80008de: 5c15         	ldrb	r5, [r2, r0]
+;             self.tx_idx += 1;
+ 80008e0: 1c40         	adds	r0, r0, #0x1
+ 80008e2: 50d0         	str	r0, [r2, r3]
+;         intrinsics::volatile_store(dst, src);
+ 80008e4: 62b5         	str	r5, [r6, #0x28]
+;         intrinsics::volatile_load(src)
+ 80008e6: 69f3         	ldr	r3, [r6, #0x1c]
+ 80008e8: e7ea         	b	0x80008c0 <USART1+0xf0> @ imm = #-0x2c
+;         if self.tx_busy
+ 80008ea: 07c0         	lsls	r0, r0, #0x1f
+ 80008ec: d01d         	beq	0x800092a <USART1+0x15a> @ imm = #0x3a
+ 80008ee: 9806         	ldr	r0, [sp, #0x18]
+ 80008f0: 0200         	lsls	r0, r0, #0x8
+;             && self.tx_idx >= self.tx_len
+ 80008f2: 5810         	ldr	r0, [r2, r0]
+ 80008f4: 2341         	movs	r3, #0x41
+ 80008f6: 009b         	lsls	r3, r3, #0x2
+ 80008f8: 58d3         	ldr	r3, [r2, r3]
+ 80008fa: 4283         	cmp	r3, r0
+ 80008fc: d30b         	blo	0x8000916 <USART1+0x146> @ imm = #0x16
+;         intrinsics::volatile_load(src)
+ 80008fe: 6830         	ldr	r0, [r6]
+;             && self.usart.cr1().read().tcie().bit_is_clear()
+ 8000900: 0640         	lsls	r0, r0, #0x19
+ 8000902: d408         	bmi	0x8000916 <USART1+0x146> @ imm = #0x10
+;         intrinsics::volatile_load(src)
+ 8000904: 6830         	ldr	r0, [r6]
+ 8000906: 2340         	movs	r3, #0x40
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000908: 4303         	orrs	r3, r0
+ 800090a: 2080         	movs	r0, #0x80
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 800090c: 4383         	bics	r3, r0
+;         intrinsics::volatile_store(dst, src);
+ 800090e: 6033         	str	r3, [r6]
+;         if self.tx_busy && self.usart.isr().read().tc().bit_is_set() {
+ 8000910: 5c50         	ldrb	r0, [r2, r1]
+ 8000912: 2800         	cmp	r0, #0x0
+ 8000914: d009         	beq	0x800092a <USART1+0x15a> @ imm = #0x12
+;         intrinsics::volatile_load(src)
+ 8000916: 69f0         	ldr	r0, [r6, #0x1c]
+;         if self.tx_busy && self.usart.isr().read().tc().bit_is_set() {
+ 8000918: 0640         	lsls	r0, r0, #0x19
+ 800091a: d506         	bpl	0x800092a <USART1+0x15a> @ imm = #0xc
+ 800091c: 2040         	movs	r0, #0x40
+;         intrinsics::volatile_store(dst, src);
+ 800091e: 6230         	str	r0, [r6, #0x20]
+;         intrinsics::volatile_load(src)
+ 8000920: 6833         	ldr	r3, [r6]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000922: 4383         	bics	r3, r0
+;         intrinsics::volatile_store(dst, src);
+ 8000924: 6033         	str	r3, [r6]
+ 8000926: 2000         	movs	r0, #0x0
+;             self.tx_busy = false;
+ 8000928: 5450         	strb	r0, [r2, r1]
+ 800092a: 9905         	ldr	r1, [sp, #0x14]
+;         if isr.ore().bit_is_set() {
+ 800092c: 0708         	lsls	r0, r1, #0x1c
+ 800092e: d501         	bpl	0x8000934 <USART1+0x164> @ imm = #0x2
+ 8000930: 2008         	movs	r0, #0x8
+;         intrinsics::volatile_store(dst, src);
+ 8000932: 6230         	str	r0, [r6, #0x20]
+;         if isr.fe().bit_is_set() {
+ 8000934: 0788         	lsls	r0, r1, #0x1e
+ 8000936: d501         	bpl	0x800093c <USART1+0x16c> @ imm = #0x2
+ 8000938: 2002         	movs	r0, #0x2
+;         intrinsics::volatile_store(dst, src);
+ 800093a: 6230         	str	r0, [r6, #0x20]
+;         if isr.ne().bit_is_set() {
+ 800093c: 0748         	lsls	r0, r1, #0x1d
+ 800093e: d501         	bpl	0x8000944 <USART1+0x174> @ imm = #0x2
+ 8000940: 2004         	movs	r0, #0x4
+;         intrinsics::volatile_store(dst, src);
+ 8000942: 6230         	str	r0, [r6, #0x20]
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000944: b007         	add	sp, #0x1c
+ 8000946: bdf0         	pop	{r4, r5, r6, r7, pc}
+;             let b = self.tx_buf[self.tx_idx];
+ 8000948: 4621         	mov	r1, r4
+ 800094a: f000 fa1f    	bl	0x8000d8c <_RNvNtCsbFcyadfXBGF_4core9panicking18panic_bounds_check> @ imm = #0x43e
+ 800094e: 46c0         	mov	r8, r8
+ 8000950: 00 38 01 40  	.word	0x40013800
+ 8000954: 58 00 00 20  	.word	0x20000058
+
+08000958 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d>:
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000958: b5f0         	push	{r4, r5, r6, r7, lr}
+ 800095a: af03         	add	r7, sp, #0xc
+ 800095c: b0ff         	sub	sp, #0x1fc
+ 800095e: b08e         	sub	sp, #0x38
+ 8000960: 48c7         	ldr	r0, [pc, #0x31c]        @ 0x8000c80 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x328>
+;         intrinsics::volatile_load(src)
+ 8000962: 6801         	ldr	r1, [r0]
+ 8000964: 2301         	movs	r3, #0x1
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000966: 4319         	orrs	r1, r3
+ 8000968: 2206         	movs	r2, #0x6
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 800096a: 4391         	bics	r1, r2
+;         intrinsics::volatile_store(dst, src);
+ 800096c: 6001         	str	r1, [r0]
+ 800096e: 2007         	movs	r0, #0x7
+ 8000970: 02c1         	lsls	r1, r0, #0xb
+ 8000972: 4cc4         	ldr	r4, [pc, #0x310]        @ 0x8000c84 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x32c>
+;         intrinsics::volatile_load(src)
+ 8000974: 6822         	ldr	r2, [r4]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000976: 438a         	bics	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000978: 6022         	str	r2, [r4]
+;         DEVICE_PERIPHERALS = true;
+ 800097a: 49c3         	ldr	r1, [pc, #0x30c]        @ 0x8000c88 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x330>
+ 800097c: 9303         	str	r3, [sp, #0xc]
+ 800097e: 700b         	strb	r3, [r1]
+;         intrinsics::volatile_load(src)
+ 8000980: 68a1         	ldr	r1, [r4, #0x8]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000982: 4381         	bics	r1, r0
+;         intrinsics::volatile_store(dst, src);
+ 8000984: 60a1         	str	r1, [r4, #0x8]
+;         intrinsics::volatile_load(src)
+ 8000986: 68a0         	ldr	r0, [r4, #0x8]
+;     while rcc.cfgr().read().sws().bits() != 0 {}
+ 8000988: 0680         	lsls	r0, r0, #0x1a
+ 800098a: 0f40         	lsrs	r0, r0, #0x1d
+ 800098c: d1fb         	bne	0x8000986 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x2e> @ imm = #-0xa
+;         intrinsics::volatile_load(src)
+ 800098e: 6b60         	ldr	r0, [r4, #0x34]
+ 8000990: 2503         	movs	r5, #0x3
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000992: 4328         	orrs	r0, r5
+;         intrinsics::volatile_store(dst, src);
+ 8000994: 9502         	str	r5, [sp, #0x8]
+ 8000996: 6360         	str	r0, [r4, #0x34]
+;         intrinsics::volatile_load(src)
+ 8000998: 6c20         	ldr	r0, [r4, #0x40]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 800099a: 9903         	ldr	r1, [sp, #0xc]
+ 800099c: 4308         	orrs	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 800099e: 6420         	str	r0, [r4, #0x40]
+;                     $func($($args),*)
+ 80009a0: f000 fa0a    	bl	0x8000db8 <__dsb>       @ imm = #0x414
+ 80009a4: 2005         	movs	r0, #0x5
+ 80009a6: 0706         	lsls	r6, r0, #0x1c
+;         intrinsics::volatile_load(src)
+ 80009a8: 6833         	ldr	r3, [r6]
+ 80009aa: 49b8         	ldr	r1, [pc, #0x2e0]        @ 0x8000c8c <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x334>
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009ac: 400b         	ands	r3, r1
+ 80009ae: 2245         	movs	r2, #0x45
+ 80009b0: 04d2         	lsls	r2, r2, #0x13
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 80009b2: 189b         	adds	r3, r3, r2
+;         intrinsics::volatile_store(dst, src);
+ 80009b4: 6033         	str	r3, [r6]
+;         intrinsics::volatile_load(src)
+ 80009b6: 6a73         	ldr	r3, [r6, #0x24]
+ 80009b8: 4cb5         	ldr	r4, [pc, #0x2d4]        @ 0x8000c90 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x338>
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009ba: 401c         	ands	r4, r3
+ 80009bc: 4bb5         	ldr	r3, [pc, #0x2d4]        @ 0x8000c94 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x33c>
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 80009be: 18e3         	adds	r3, r4, r3
+;         intrinsics::volatile_store(dst, src);
+ 80009c0: 6273         	str	r3, [r6, #0x24]
+ 80009c2: 230b         	movs	r3, #0xb
+ 80009c4: 025b         	lsls	r3, r3, #0x9
+;         intrinsics::volatile_load(src)
+ 80009c6: 6874         	ldr	r4, [r6, #0x4]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009c8: 439c         	bics	r4, r3
+;         intrinsics::volatile_store(dst, src);
+ 80009ca: 6074         	str	r4, [r6, #0x4]
+;         intrinsics::volatile_load(src)
+ 80009cc: 68b3         	ldr	r3, [r6, #0x8]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009ce: 400b         	ands	r3, r1
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 80009d0: 189a         	adds	r2, r3, r2
+;         intrinsics::volatile_store(dst, src);
+ 80009d2: 60b2         	str	r2, [r6, #0x8]
+;         intrinsics::volatile_load(src)
+ 80009d4: 68f2         	ldr	r2, [r6, #0xc]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009d6: 400a         	ands	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 80009d8: 60f2         	str	r2, [r6, #0xc]
+;         intrinsics::volatile_load(src)
+ 80009da: 6832         	ldr	r2, [r6]
+ 80009dc: 49ae         	ldr	r1, [pc, #0x2b8]        @ 0x8000c98 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x340>
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009de: 400a         	ands	r2, r1
+ 80009e0: 0203         	lsls	r3, r0, #0x8
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 80009e2: 18d2         	adds	r2, r2, r3
+;         intrinsics::volatile_store(dst, src);
+ 80009e4: 6032         	str	r2, [r6]
+;         intrinsics::volatile_load(src)
+ 80009e6: 6872         	ldr	r2, [r6, #0x4]
+ 80009e8: 2330         	movs	r3, #0x30
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009ea: 439a         	bics	r2, r3
+;         intrinsics::volatile_store(dst, src);
+ 80009ec: 6072         	str	r2, [r6, #0x4]
+;         intrinsics::volatile_load(src)
+ 80009ee: 68b2         	ldr	r2, [r6, #0x8]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009f0: 400a         	ands	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 80009f2: 60b2         	str	r2, [r6, #0x8]
+;         intrinsics::volatile_load(src)
+ 80009f4: 68f2         	ldr	r2, [r6, #0xc]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 80009f6: 400a         	ands	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 80009f8: 60f2         	str	r2, [r6, #0xc]
+ 80009fa: 0529         	lsls	r1, r5, #0x14
+ 80009fc: 61b1         	str	r1, [r6, #0x18]
+;         intrinsics::volatile_load(src)
+ 80009fe: 6831         	ldr	r1, [r6]
+ 8000a00: 4ba6         	ldr	r3, [pc, #0x298]        @ 0x8000c9c <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x344>
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a02: 4019         	ands	r1, r3
+;         intrinsics::volatile_store(dst, src);
+ 8000a04: 6031         	str	r1, [r6]
+;         intrinsics::volatile_load(src)
+ 8000a06: 6871         	ldr	r1, [r6, #0x4]
+ 8000a08: 2280         	movs	r2, #0x80
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a0a: 430a         	orrs	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000a0c: 6072         	str	r2, [r6, #0x4]
+;         intrinsics::volatile_load(src)
+ 8000a0e: 68f1         	ldr	r1, [r6, #0xc]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a10: 4019         	ands	r1, r3
+ 8000a12: 9a03         	ldr	r2, [sp, #0xc]
+ 8000a14: 0392         	lsls	r2, r2, #0xe
+ 8000a16: 9205         	str	r2, [sp, #0x14]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a18: 1889         	adds	r1, r1, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000a1a: 60f1         	str	r1, [r6, #0xc]
+ 8000a1c: 49a0         	ldr	r1, [pc, #0x280]        @ 0x8000ca0 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x348>
+;         intrinsics::volatile_load(src)
+ 8000a1e: 680b         	ldr	r3, [r1]
+ 8000a20: 4aa0         	ldr	r2, [pc, #0x280]        @ 0x8000ca4 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x34c>
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a22: 4013         	ands	r3, r2
+ 8000a24: 0344         	lsls	r4, r0, #0xd
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a26: 191b         	adds	r3, r3, r4
+;         intrinsics::volatile_store(dst, src);
+ 8000a28: 600b         	str	r3, [r1]
+ 8000a2a: 23ff         	movs	r3, #0xff
+ 8000a2c: 061b         	lsls	r3, r3, #0x18
+;         intrinsics::volatile_load(src)
+ 8000a2e: 6a0c         	ldr	r4, [r1, #0x20]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a30: 439c         	bics	r4, r3
+ 8000a32: 2333         	movs	r3, #0x33
+ 8000a34: 065b         	lsls	r3, r3, #0x19
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a36: 18e3         	adds	r3, r4, r3
+;         intrinsics::volatile_store(dst, src);
+ 8000a38: 620b         	str	r3, [r1, #0x20]
+;         intrinsics::volatile_load(src)
+ 8000a3a: 684b         	ldr	r3, [r1, #0x4]
+ 8000a3c: 24c0         	movs	r4, #0xc0
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a3e: 431c         	orrs	r4, r3
+;         intrinsics::volatile_store(dst, src);
+ 8000a40: 604c         	str	r4, [r1, #0x4]
+ 8000a42: 230f         	movs	r3, #0xf
+ 8000a44: 031c         	lsls	r4, r3, #0xc
+;         intrinsics::volatile_load(src)
+ 8000a46: 688d         	ldr	r5, [r1, #0x8]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a48: 4325         	orrs	r5, r4
+;         intrinsics::volatile_store(dst, src);
+ 8000a4a: 608d         	str	r5, [r1, #0x8]
+;         intrinsics::volatile_load(src)
+ 8000a4c: 68cc         	ldr	r4, [r1, #0xc]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a4e: 4014         	ands	r4, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000a50: 60cc         	str	r4, [r1, #0xc]
+;         intrinsics::volatile_load(src)
+ 8000a52: 6831         	ldr	r1, [r6]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a54: 4399         	bics	r1, r3
+;         intrinsics::volatile_store(dst, src);
+ 8000a56: 6031         	str	r1, [r6]
+;         intrinsics::volatile_load(src)
+ 8000a58: 68f1         	ldr	r1, [r6, #0xc]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a5a: 4301         	orrs	r1, r0
+ 8000a5c: 200a         	movs	r0, #0xa
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a5e: 4381         	bics	r1, r0
+;         intrinsics::volatile_store(dst, src);
+ 8000a60: 60f1         	str	r1, [r6, #0xc]
+ 8000a62: 4b91         	ldr	r3, [pc, #0x244]        @ 0x8000ca8 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x350>
+ 8000a64: 2200         	movs	r2, #0x0
+ 8000a66: 661a         	str	r2, [r3, #0x60]
+;         intrinsics::volatile_load(src)
+ 8000a68: 6818         	ldr	r0, [r3]
+ 8000a6a: 9902         	ldr	r1, [sp, #0x8]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a6c: 4308         	orrs	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000a6e: 6018         	str	r0, [r3]
+;         intrinsics::volatile_load(src)
+ 8000a70: 6858         	ldr	r0, [r3, #0x4]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a72: 4308         	orrs	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000a74: 6058         	str	r0, [r3, #0x4]
+ 8000a76: 60d9         	str	r1, [r3, #0xc]
+ 8000a78: 6119         	str	r1, [r3, #0x10]
+;         intrinsics::volatile_load(src)
+ 8000a7a: 6830         	ldr	r0, [r6]
+ 8000a7c: 498b         	ldr	r1, [pc, #0x22c]        @ 0x8000cac <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x354>
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a7e: 4008         	ands	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000a80: 6030         	str	r0, [r6]
+;         intrinsics::volatile_load(src)
+ 8000a82: 68f0         	ldr	r0, [r6, #0xc]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a84: 4008         	ands	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000a86: 60f0         	str	r0, [r6, #0xc]
+ 8000a88: 9201         	str	r2, [sp, #0x4]
+ 8000a8a: 665a         	str	r2, [r3, #0x64]
+;         intrinsics::volatile_load(src)
+ 8000a8c: 6818         	ldr	r0, [r3]
+ 8000a8e: 2140         	movs	r1, #0x40
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000a90: 4388         	bics	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000a92: 6018         	str	r0, [r3]
+;         intrinsics::volatile_load(src)
+ 8000a94: 6858         	ldr	r0, [r3, #0x4]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000a96: 4308         	orrs	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000a98: 6058         	str	r0, [r3, #0x4]
+ 8000a9a: 6119         	str	r1, [r3, #0x10]
+;                     $func($($args),*)
+ 8000a9c: f000 f98c    	bl	0x8000db8 <__dsb>       @ imm = #0x318
+ 8000aa0: f000 f98d    	bl	0x8000dbe <__isb>       @ imm = #0x31a
+;         intrinsics::volatile_load(src)
+ 8000aa4: 6930         	ldr	r0, [r6, #0x10]
+ 8000aa6: 2010         	movs	r0, #0x10
+ 8000aa8: 9000         	str	r0, [sp]
+;         intrinsics::volatile_store(dst, src);
+ 8000aaa: 61b0         	str	r0, [r6, #0x18]
+ 8000aac: 2020         	movs	r0, #0x20
+ 8000aae: 9006         	str	r0, [sp, #0x18]
+;         intrinsics::volatile_store(dst, src);
+ 8000ab0: 61b0         	str	r0, [r6, #0x18]
+;         intrinsics::volatile_load(src)
+ 8000ab2: 6830         	ldr	r0, [r6]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000ab4: 4979         	ldr	r1, [pc, #0x1e4]        @ 0x8000c9c <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x344>
+ 8000ab6: 4008         	ands	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000ab8: 6030         	str	r0, [r6]
+ 8000aba: 9903         	ldr	r1, [sp, #0xc]
+ 8000abc: 0508         	lsls	r0, r1, #0x14
+ 8000abe: 61b0         	str	r0, [r6, #0x18]
+ 8000ac0: 0548         	lsls	r0, r1, #0x15
+ 8000ac2: 9007         	str	r0, [sp, #0x1c]
+ 8000ac4: 05c8         	lsls	r0, r1, #0x17
+ 8000ac6: 9004         	str	r0, [sp, #0x10]
+ 8000ac8: 248f         	movs	r4, #0x8f
+ 8000aca: 2508         	movs	r5, #0x8
+;         intrinsics::volatile_store(dst, src);
+ 8000acc: 9807         	ldr	r0, [sp, #0x1c]
+ 8000ace: 61b0         	str	r0, [r6, #0x18]
+;         if (data & 1) != 0 {
+ 8000ad0: 07e0         	lsls	r0, r4, #0x1f
+ 8000ad2: d107         	bne	0x8000ae4 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x18c> @ imm = #0xe
+;         intrinsics::volatile_store(dst, src);
+ 8000ad4: 9804         	ldr	r0, [sp, #0x10]
+ 8000ad6: 61b0         	str	r0, [r6, #0x18]
+;         intrinsics::volatile_load(src)
+ 8000ad8: 6830         	ldr	r0, [r6]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000ada: 4970         	ldr	r1, [pc, #0x1c0]        @ 0x8000c9c <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x344>
+ 8000adc: 4008         	ands	r0, r1
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000ade: 9905         	ldr	r1, [sp, #0x14]
+ 8000ae0: 4308         	orrs	r0, r1
+;             dio_low(); // drive low
+ 8000ae2: e002         	b	0x8000aea <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x192> @ imm = #0x4
+;         intrinsics::volatile_load(src)
+ 8000ae4: 6830         	ldr	r0, [r6]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000ae6: 496d         	ldr	r1, [pc, #0x1b4]        @ 0x8000c9c <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x344>
+ 8000ae8: 4008         	ands	r0, r1
+ 8000aea: 6030         	str	r0, [r6]
+;                     $func($($args),*)
+ 8000aec: f000 f96a    	bl	0x8000dc4 <__nop>       @ imm = #0x2d4
+ 8000af0: f000 f968    	bl	0x8000dc4 <__nop>       @ imm = #0x2d0
+;         intrinsics::volatile_store(dst, src);
+ 8000af4: 9806         	ldr	r0, [sp, #0x18]
+ 8000af6: 61b0         	str	r0, [r6, #0x18]
+;                     $func($($args),*)
+ 8000af8: f000 f964    	bl	0x8000dc4 <__nop>       @ imm = #0x2c8
+ 8000afc: f000 f962    	bl	0x8000dc4 <__nop>       @ imm = #0x2c4
+;         data >>= 1;
+ 8000b00: 0864         	lsrs	r4, r4, #0x1
+;             fn lt(&self, other: &Self) -> bool { *self <  *other }
+ 8000b02: 1e6d         	subs	r5, r5, #0x1
+;         if self.start < self.end {
+ 8000b04: d1e2         	bne	0x8000acc <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x174> @ imm = #-0x3c
+;         intrinsics::volatile_load(src)
+ 8000b06: 6830         	ldr	r0, [r6]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000b08: 4964         	ldr	r1, [pc, #0x190]        @ 0x8000c9c <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x344>
+ 8000b0a: 4008         	ands	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000b0c: 6030         	str	r0, [r6]
+ 8000b0e: 9d07         	ldr	r5, [sp, #0x1c]
+;         intrinsics::volatile_store(dst, src);
+ 8000b10: 61b5         	str	r5, [r6, #0x18]
+ 8000b12: 9800         	ldr	r0, [sp]
+ 8000b14: 61b0         	str	r0, [r6, #0x18]
+ 8000b16: 4c5b         	ldr	r4, [pc, #0x16c]        @ 0x8000c84 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x32c>
+;         intrinsics::volatile_load(src)
+ 8000b18: 6c20         	ldr	r0, [r4, #0x40]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b1a: 9905         	ldr	r1, [sp, #0x14]
+ 8000b1c: 4308         	orrs	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000b1e: 6420         	str	r0, [r4, #0x40]
+ 8000b20: 4863         	ldr	r0, [pc, #0x18c]        @ 0x8000cb0 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x358>
+;         intrinsics::volatile_load(src)
+ 8000b22: 6801         	ldr	r1, [r0]
+ 8000b24: 9b03         	ldr	r3, [sp, #0xc]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000b26: 4399         	bics	r1, r3
+;         intrinsics::volatile_store(dst, src);
+ 8000b28: 6001         	str	r1, [r0]
+ 8000b2a: 0759         	lsls	r1, r3, #0x1d
+;         intrinsics::volatile_load(src)
+ 8000b2c: 6802         	ldr	r2, [r0]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000b2e: 438a         	bics	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000b30: 6002         	str	r2, [r0]
+ 8000b32: 214b         	movs	r1, #0x4b
+ 8000b34: 0089         	lsls	r1, r1, #0x2
+ 8000b36: 460a         	mov	r2, r1
+ 8000b38: 3274         	adds	r2, #0x74
+ 8000b3a: 60c2         	str	r2, [r0, #0xc]
+ 8000b3c: 6141         	str	r1, [r0, #0x14]
+;         intrinsics::volatile_load(src)
+ 8000b3e: 6841         	ldr	r1, [r0, #0x4]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b40: 9a04         	ldr	r2, [sp, #0x10]
+ 8000b42: 4311         	orrs	r1, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000b44: 6041         	str	r1, [r0, #0x4]
+ 8000b46: 9902         	ldr	r1, [sp, #0x8]
+ 8000b48: 0389         	lsls	r1, r1, #0xe
+;         intrinsics::volatile_load(src)
+ 8000b4a: 6882         	ldr	r2, [r0, #0x8]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b4c: 430a         	orrs	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000b4e: 6082         	str	r2, [r0, #0x8]
+;         intrinsics::volatile_load(src)
+ 8000b50: 6801         	ldr	r1, [r0]
+ 8000b52: 4a58         	ldr	r2, [pc, #0x160]        @ 0x8000cb4 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x35c>
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000b54: 400a         	ands	r2, r1
+ 8000b56: 2163         	movs	r1, #0x63
+ 8000b58: 0409         	lsls	r1, r1, #0x10
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b5a: 1851         	adds	r1, r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000b5c: 6001         	str	r1, [r0]
+;         intrinsics::volatile_load(src)
+ 8000b5e: 6801         	ldr	r1, [r0]
+ 8000b60: 4a55         	ldr	r2, [pc, #0x154]        @ 0x8000cb8 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x360>
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b62: 430a         	orrs	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000b64: 6002         	str	r2, [r0]
+;         intrinsics::volatile_load(src)
+ 8000b66: 6801         	ldr	r1, [r0]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b68: 4319         	orrs	r1, r3
+;         intrinsics::volatile_store(dst, src);
+ 8000b6a: 6001         	str	r1, [r0]
+;         intrinsics::volatile_load(src)
+ 8000b6c: 69c1         	ldr	r1, [r0, #0x1c]
+;         while !usart.isr().read().teack().bit_is_set() {}
+ 8000b6e: 4229         	tst	r1, r5
+ 8000b70: d0fc         	beq	0x8000b6c <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x214> @ imm = #-0x8
+;         intrinsics::volatile_load(src)
+ 8000b72: 69c1         	ldr	r1, [r0, #0x1c]
+;         while !usart.isr().read().reack().bit_is_set() {}
+ 8000b74: 0249         	lsls	r1, r1, #0x9
+ 8000b76: d5fc         	bpl	0x8000b72 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x21a> @ imm = #-0x8
+ 8000b78: a808         	add	r0, sp, #0x20
+ 8000b7a: 4950         	ldr	r1, [pc, #0x140]        @ 0x8000cbc <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x364>
+;         Self {
+ 8000b7c: f000 f9f3    	bl	0x8000f66 <__aeabi_memclr8> @ imm = #0x3e6
+;         intrinsics::volatile_load(src)
+ 8000b80: 6be0         	ldr	r0, [r4, #0x3c]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b82: 4328         	orrs	r0, r5
+;         intrinsics::volatile_store(dst, src);
+ 8000b84: 63e0         	str	r0, [r4, #0x3c]
+;         intrinsics::volatile_load(src)
+ 8000b86: 6ae0         	ldr	r0, [r4, #0x2c]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b88: 4328         	orrs	r0, r5
+;         intrinsics::volatile_store(dst, src);
+ 8000b8a: 62e0         	str	r0, [r4, #0x2c]
+;         intrinsics::volatile_load(src)
+ 8000b8c: 6ae0         	ldr	r0, [r4, #0x2c]
+;             fn bitand_assign(&mut self, other: $t) { *self &= other }
+ 8000b8e: 43a8         	bics	r0, r5
+;         intrinsics::volatile_store(dst, src);
+ 8000b90: 62e0         	str	r0, [r4, #0x2c]
+ 8000b92: 484b         	ldr	r0, [pc, #0x12c]        @ 0x8000cc0 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x368>
+ 8000b94: 494b         	ldr	r1, [pc, #0x12c]        @ 0x8000cc4 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x36c>
+;         intrinsics::volatile_store(dst, src);
+ 8000b96: 6101         	str	r1, [r0, #0x10]
+;         intrinsics::volatile_load(src)
+ 8000b98: 6801         	ldr	r1, [r0]
+ 8000b9a: 9d03         	ldr	r5, [sp, #0xc]
+;             fn bitor_assign(&mut self, other: $t) { *self |= other }
+ 8000b9c: 4329         	orrs	r1, r5
+;         intrinsics::volatile_store(dst, src);
+ 8000b9e: 6001         	str	r1, [r0]
+ 8000ba0: 4949         	ldr	r1, [pc, #0x124]        @ 0x8000cc8 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x370>
+;         intrinsics::volatile_load(src)
+ 8000ba2: 6808         	ldr	r0, [r1]
+;         unsafe { self.csr.modify(|v| v & !SYST_CSR_ENABLE) }
+ 8000ba4: 43a8         	bics	r0, r5
+;         intrinsics::volatile_store(dst, src);
+ 8000ba6: 6008         	str	r0, [r1]
+;         intrinsics::volatile_load(src)
+ 8000ba8: 6808         	ldr	r0, [r1]
+ 8000baa: 2204         	movs	r2, #0x4
+ 8000bac: 9206         	str	r2, [sp, #0x18]
+;             SystClkSource::Core => unsafe { self.csr.modify(|v| v | SYST_CSR_CLKSOURCE) },
+ 8000bae: 4310         	orrs	r0, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000bb0: 6008         	str	r0, [r1]
+ 8000bb2: 4846         	ldr	r0, [pc, #0x118]        @ 0x8000ccc <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x374>
+ 8000bb4: 6048         	str	r0, [r1, #0x4]
+;                     $func($($args),*)
+ 8000bb6: 1c40         	adds	r0, r0, #0x1
+ 8000bb8: f000 f8f9    	bl	0x8000dae <__delay>     @ imm = #0x1f2
+;         intrinsics::volatile_load(src)
+ 8000bbc: 6930         	ldr	r0, [r6, #0x10]
+ 8000bbe: 6930         	ldr	r0, [r6, #0x10]
+;         intrinsics::volatile_store(dst, src);
+ 8000bc0: 9007         	str	r0, [sp, #0x1c]
+ 8000bc2: 9802         	ldr	r0, [sp, #0x8]
+ 8000bc4: 4938         	ldr	r1, [pc, #0xe0]         @ 0x8000ca8 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x350>
+ 8000bc6: 60c8         	str	r0, [r1, #0xc]
+ 8000bc8: 2443         	movs	r4, #0x43
+ 8000bca: 610c         	str	r4, [r1, #0x10]
+;                     $func($($args),*)
+ 8000bcc: f000 f8f4    	bl	0x8000db8 <__dsb>       @ imm = #0x1e8
+ 8000bd0: 483f         	ldr	r0, [pc, #0xfc]         @ 0x8000cd0 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x378>
+;         intrinsics::volatile_load(src)
+ 8000bd2: 6801         	ldr	r1, [r0]
+;         w.bits(r.bits() | config::ENCODER_EXTI_MASK | config::POWER_FAIL_EXTI_MASK)
+ 8000bd4: 4321         	orrs	r1, r4
+;         intrinsics::volatile_store(dst, src);
+ 8000bd6: 6001         	str	r1, [r0]
+;                     $func($($args),*)
+ 8000bd8: f000 f8f1    	bl	0x8000dbe <__isb>       @ imm = #0x1e2
+ 8000bdc: f000 f8f4    	bl	0x8000dc8 <__primask_r> @ imm = #0x1e8
+ 8000be0: 4604         	mov	r4, r0
+;     if r & (1 << 0) == (1 << 0) {
+ 8000be2: 402c         	ands	r4, r5
+;                     $func($($args),*)
+ 8000be4: f000 f8df    	bl	0x8000da6 <__cpsid>     @ imm = #0x1be
+;             Relaxed => intrinsics::atomic_load::<T, { AO::Relaxed }>(dst),
+ 8000be8: 483a         	ldr	r0, [pc, #0xe8]         @ 0x8000cd4 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x37c>
+ 8000bea: 6806         	ldr	r6, [r0]
+;             Acquire => intrinsics::atomic_load::<T, { AO::Acquire }>(dst),
+ 8000bec: 6845         	ldr	r5, [r0, #0x4]
+ 8000bee: f3bf 8f5f    	dmb	sy
+;         if current_head == self.tail.load(Ordering::Acquire) {
+ 8000bf2: 42ae         	cmp	r6, r5
+ 8000bf4: d008         	beq	0x8000c08 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x2b0> @ imm = #0x10
+;             slice_get_unchecked(slice, self)
+ 8000bf6: 1981         	adds	r1, r0, r6
+;         crate::intrinsics::read_via_copy(src)
+ 8000bf8: 7a09         	ldrb	r1, [r1, #0x8]
+;         (val + 1) % N
+ 8000bfa: 9105         	str	r1, [sp, #0x14]
+ 8000bfc: 4631         	mov	r1, r6
+ 8000bfe: 9a03         	ldr	r2, [sp, #0xc]
+ 8000c00: 4051         	eors	r1, r2
+;             Release => intrinsics::atomic_store::<T, { AO::Release }>(dst, val),
+ 8000c02: f3bf 8f5f    	dmb	sy
+ 8000c06: 6001         	str	r1, [r0]
+;     if primask.is_active() {
+ 8000c08: 2c00         	cmp	r4, #0x0
+ 8000c0a: d101         	bne	0x8000c10 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x2b8> @ imm = #0x2
+;                     $func($($args),*)
+ 8000c0c: f000 f8cd    	bl	0x8000daa <__cpsie>     @ imm = #0x19a
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000c10: 42ae         	cmp	r6, r5
+ 8000c12: d015         	beq	0x8000c40 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x2e8> @ imm = #0x2a
+;                     $func($($args),*)
+ 8000c14: f000 f8d8    	bl	0x8000dc8 <__primask_r> @ imm = #0x1b0
+ 8000c18: 4604         	mov	r4, r0
+ 8000c1a: f000 f8c4    	bl	0x8000da6 <__cpsid>     @ imm = #0x188
+;             Relaxed => intrinsics::atomic_load::<T, { AO::Relaxed }>(dst),
+ 8000c1e: 482e         	ldr	r0, [pc, #0xb8]         @ 0x8000cd8 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x380>
+ 8000c20: 6841         	ldr	r1, [r0, #0x4]
+;             slice_get_unchecked(slice, self)
+ 8000c22: 1842         	adds	r2, r0, r1
+;         intrinsics::write_via_move(dst, src)
+ 8000c24: 9b05         	ldr	r3, [sp, #0x14]
+ 8000c26: 7213         	strb	r3, [r2, #0x8]
+;         (val + 1) % N
+ 8000c28: 9a03         	ldr	r2, [sp, #0xc]
+ 8000c2a: 4051         	eors	r1, r2
+;             Release => intrinsics::atomic_store::<T, { AO::Release }>(dst, val),
+ 8000c2c: f3bf 8f5f    	dmb	sy
+ 8000c30: 6041         	str	r1, [r0, #0x4]
+;     if primask.is_active() {
+ 8000c32: 07e0         	lsls	r0, r4, #0x1f
+ 8000c34: d101         	bne	0x8000c3a <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x2e2> @ imm = #0x2
+;                     $func($($args),*)
+ 8000c36: f000 f8b8    	bl	0x8000daa <__cpsie>     @ imm = #0x170
+ 8000c3a: 4828         	ldr	r0, [pc, #0xa0]         @ 0x8000cdc <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x384>
+;         intrinsics::volatile_store(dst, src);
+ 8000c3c: 9906         	ldr	r1, [sp, #0x18]
+ 8000c3e: 6001         	str	r1, [r0]
+;         intrinsics::write_via_move(dst, src)
+ 8000c40: 4827         	ldr	r0, [pc, #0x9c]         @ 0x8000ce0 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x388>
+ 8000c42: 9c01         	ldr	r4, [sp, #0x4]
+ 8000c44: 6004         	str	r4, [r0]
+ 8000c46: 2021         	movs	r0, #0x21
+ 8000c48: 0102         	lsls	r2, r0, #0x4
+ 8000c4a: 4826         	ldr	r0, [pc, #0x98]         @ 0x8000ce4 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x38c>
+ 8000c4c: a908         	add	r1, sp, #0x20
+;         intrinsics::write_via_move(dst, src)
+ 8000c4e: f000 f9d9    	bl	0x8001004 <__aeabi_memcpy4> @ imm = #0x3b2
+ 8000c52: 4a1d         	ldr	r2, [pc, #0x74]         @ 0x8000cc8 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x370>
+;         intrinsics::volatile_store(dst, src);
+ 8000c54: 6094         	str	r4, [r2, #0x8]
+;         intrinsics::volatile_load(src)
+ 8000c56: 6810         	ldr	r0, [r2]
+ 8000c58: 9903         	ldr	r1, [sp, #0xc]
+;         unsafe { self.csr.modify(|v| v | SYST_CSR_ENABLE) }
+ 8000c5a: 4308         	orrs	r0, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000c5c: 6010         	str	r0, [r2]
+;         self.prev = (gpioa.idr().read().bits() & ENC_MASK) as u8;
+ 8000c5e: 9802         	ldr	r0, [sp, #0x8]
+ 8000c60: 9a07         	ldr	r2, [sp, #0x1c]
+;         self.prev = (gpioa.idr().read().bits() & ENC_MASK) as u8;
+ 8000c62: 4002         	ands	r2, r0
+;         intrinsics::write_via_move(dst, src)
+ 8000c64: 4820         	ldr	r0, [pc, #0x80]         @ 0x8000ce8 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x390>
+ 8000c66: 7002         	strb	r2, [r0]
+ 8000c68: 4820         	ldr	r0, [pc, #0x80]         @ 0x8000cec <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x394>
+ 8000c6a: 6004         	str	r4, [r0]
+ 8000c6c: 6044         	str	r4, [r0, #0x4]
+ 8000c6e: 4820         	ldr	r0, [pc, #0x80]         @ 0x8000cf0 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d+0x398>
+ 8000c70: 7001         	strb	r1, [r0]
+;                     $func($($args),*)
+ 8000c72: f000 f89a    	bl	0x8000daa <__cpsie>     @ imm = #0x134
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000c76: 1ffe         	subs	r6, r7, #0x7
+ 8000c78: 3e05         	subs	r6, #0x5
+ 8000c7a: 46b5         	mov	sp, r6
+ 8000c7c: bdf0         	pop	{r4, r5, r6, r7, pc}
+ 8000c7e: 46c0         	mov	r8, r8
+ 8000c80: 00 20 02 40  	.word	0x40022000
+ 8000c84: 00 10 02 40  	.word	0x40021000
+ 8000c88: 54 00 00 20  	.word	0x20000054
+ 8000c8c: ff ff c3 fc  	.word	0xfcc3ffff
+ 8000c90: 0f f0 f0 ff  	.word	0xfff0f00f
+ 8000c94: 10 01 01 00  	.word	0x00010110
+ 8000c98: ff f0 ff ff  	.word	0xfffff0ff
+ 8000c9c: ff 3f ff ff  	.word	0xffff3fff
+ 8000ca0: 00 04 00 50  	.word	0x50000400
+ 8000ca4: ff 0f ff ff  	.word	0xffff0fff
+ 8000ca8: 00 18 02 40  	.word	0x40021800
+ 8000cac: ff cf ff ff  	.word	0xffffcfff
+ 8000cb0: 00 38 01 40  	.word	0x40013800
+ 8000cb4: ff ff 00 fc  	.word	0xfc00ffff
+ 8000cb8: 2c 00 00 04  	.word	0x0400002c
+ 8000cbc: 0d 02 00 00  	.word	0x0000020d
+ 8000cc0: 00 54 00 40  	.word	0x40005400
+ 8000cc4: 5d 3e 30 20  	.word	0x20303e5d
+ 8000cc8: 10 e0 00 e0  	.word	0xe000e010
+ 8000ccc: 7f bb 00 00  	.word	0x0000bb7f
+ 8000cd0: 80 18 02 40  	.word	0x40021880
+ 8000cd4: 2c 00 00 20  	.word	0x2000002c
+ 8000cd8: 20 00 00 20  	.word	0x20000020
+ 8000cdc: 00 e2 00 e0  	.word	0xe000e200
+ 8000ce0: 6c 02 00 20  	.word	0x2000026c
+ 8000ce4: 58 00 00 20  	.word	0x20000058
+ 8000ce8: 68 02 00 20  	.word	0x20000268
+ 8000cec: 48 00 00 20  	.word	0x20000048
+ 8000cf0: 40 00 00 20  	.word	0x20000040
+
+08000cf4 <main>:
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000cf4: b580         	push	{r7, lr}
+ 8000cf6: af00         	add	r7, sp, #0x0
+;                     $func($($args),*)
+ 8000cf8: f000 f855    	bl	0x8000da6 <__cpsid>     @ imm = #0xaa
+;             Relaxed => intrinsics::atomic_load::<T, { AO::Relaxed }>(dst),
+ 8000cfc: 481b         	ldr	r0, [pc, #0x6c]         @ 0x8000d6c <main+0x78>
+ 8000cfe: 6842         	ldr	r2, [r0, #0x4]
+;             slice_get_unchecked(slice, self)
+ 8000d00: 1881         	adds	r1, r0, r2
+ 8000d02: 2300         	movs	r3, #0x0
+;         intrinsics::write_via_move(dst, src)
+ 8000d04: 720b         	strb	r3, [r1, #0x8]
+ 8000d06: 2101         	movs	r1, #0x1
+;         (val + 1) % N
+ 8000d08: 404a         	eors	r2, r1
+;             Release => intrinsics::atomic_store::<T, { AO::Release }>(dst, val),
+ 8000d0a: f3bf 8f5f    	dmb	sy
+ 8000d0e: 6042         	str	r2, [r0, #0x4]
+ 8000d10: 24ff         	movs	r4, #0xff
+ 8000d12: 0422         	lsls	r2, r4, #0x10
+ 8000d14: 4816         	ldr	r0, [pc, #0x58]         @ 0x8000d70 <main+0x7c>
+;         intrinsics::volatile_load(src)
+ 8000d16: 1f03         	subs	r3, r0, #0x4
+ 8000d18: 681d         	ldr	r5, [r3]
+;                 (value & !mask) | prio
+ 8000d1a: 4395         	bics	r5, r2
+ 8000d1c: 2203         	movs	r2, #0x3
+ 8000d1e: 0592         	lsls	r2, r2, #0x16
+;                 (value & !mask) | prio
+ 8000d20: 18aa         	adds	r2, r5, r2
+;         intrinsics::volatile_store(dst, src);
+ 8000d22: 601a         	str	r2, [r3]
+ 8000d24: 4a13         	ldr	r2, [pc, #0x4c]         @ 0x8000d74 <main+0x80>
+ 8000d26: 2304         	movs	r3, #0x4
+;         intrinsics::volatile_store(dst, src);
+ 8000d28: 6013         	str	r3, [r2]
+;         intrinsics::volatile_load(src)
+ 8000d2a: 6945         	ldr	r5, [r0, #0x14]
+ 8000d2c: 4b12         	ldr	r3, [pc, #0x48]         @ 0x8000d78 <main+0x84>
+;                 (value & !mask) | prio
+ 8000d2e: 401d         	ands	r5, r3
+ 8000d30: 07ce         	lsls	r6, r1, #0x1f
+;                 (value & !mask) | prio
+ 8000d32: 19ad         	adds	r5, r5, r6
+;         intrinsics::volatile_store(dst, src);
+ 8000d34: 6145         	str	r5, [r0, #0x14]
+ 8000d36: 06cd         	lsls	r5, r1, #0x1b
+ 8000d38: 6015         	str	r5, [r2]
+ 8000d3a: 0224         	lsls	r4, r4, #0x8
+;         intrinsics::volatile_load(src)
+ 8000d3c: 6805         	ldr	r5, [r0]
+;                 (value & !mask) | prio
+ 8000d3e: 43a5         	bics	r5, r4
+ 8000d40: 0389         	lsls	r1, r1, #0xe
+;                 (value & !mask) | prio
+ 8000d42: 1869         	adds	r1, r5, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000d44: 6001         	str	r1, [r0]
+ 8000d46: 2120         	movs	r1, #0x20
+ 8000d48: 6011         	str	r1, [r2]
+;         intrinsics::volatile_load(src)
+ 8000d4a: 6801         	ldr	r1, [r0]
+;                 (value & !mask) | prio
+ 8000d4c: 4019         	ands	r1, r3
+;         intrinsics::volatile_store(dst, src);
+ 8000d4e: 6001         	str	r1, [r0]
+ 8000d50: 2080         	movs	r0, #0x80
+ 8000d52: 6010         	str	r0, [r2]
+ 8000d54: 4809         	ldr	r0, [pc, #0x24]         @ 0x8000d7c <main+0x88>
+;         intrinsics::volatile_load(src)
+ 8000d56: 6801         	ldr	r1, [r0]
+;                 (value & !mask) | prio
+ 8000d58: 4019         	ands	r1, r3
+;         intrinsics::volatile_store(dst, src);
+ 8000d5a: 6001         	str	r1, [r0]
+ 8000d5c: 4808         	ldr	r0, [pc, #0x20]         @ 0x8000d80 <main+0x8c>
+;         intrinsics::volatile_load(src)
+ 8000d5e: 6801         	ldr	r1, [r0]
+ 8000d60: 2202         	movs	r2, #0x2
+;         unsafe { self.csr.modify(|v| v | SYST_CSR_TICKINT) }
+ 8000d62: 430a         	orrs	r2, r1
+;         intrinsics::volatile_store(dst, src);
+ 8000d64: 6002         	str	r2, [r0]
+; #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
+ 8000d66: f7ff fdf7    	bl	0x8000958 <bsp::app::rtic_ext::main::__rtic_init_resources::h124affd8f1bd587d> @ imm = #-0x412
+;         loop {
+ 8000d6a: e7fe         	b	0x8000d6a <main+0x76>   @ imm = #-0x4
+ 8000d6c: 2c 00 00 20  	.word	0x2000002c
+ 8000d70: 04 e4 00 e0  	.word	0xe000e404
+ 8000d74: 00 e1 00 e0  	.word	0xe000e100
+ 8000d78: ff ff ff 00  	.word	0x00ffffff
+ 8000d7c: 20 ed 00 e0  	.word	0xe000ed20
+ 8000d80: 10 e0 00 e0  	.word	0xe000e010
+
+08000d84 <_RNvNtCsbFcyadfXBGF_4core9panicking9panic_fmt>:
+ 8000d84: b580         	push	{r7, lr}
+ 8000d86: af00         	add	r7, sp, #0x0
+ 8000d88: f000 f80a    	bl	0x8000da0 <_RNvCs4SDFJOLwvtW_7___rustc17rust_begin_unwind> @ imm = #0x14
+
+08000d8c <_RNvNtCsbFcyadfXBGF_4core9panicking18panic_bounds_check>:
+ 8000d8c: b580         	push	{r7, lr}
+ 8000d8e: af00         	add	r7, sp, #0x0
+ 8000d90: f7ff fff8    	bl	0x8000d84 <_RNvNtCsbFcyadfXBGF_4core9panicking9panic_fmt> @ imm = #-0x10
+
+08000d94 <WWDG>:
+; pub unsafe extern "C" fn DefaultHandler_() -> ! {
+ 8000d94: b580         	push	{r7, lr}
+ 8000d96: af00         	add	r7, sp, #0x0
+;     loop {}
+ 8000d98: e7fe         	b	0x8000d98 <WWDG+0x4>    @ imm = #-0x4
+
+08000d9a <__pre_init>:
+; pub unsafe extern "C" fn DefaultPreInit() {}
+ 8000d9a: b580         	push	{r7, lr}
+ 8000d9c: af00         	add	r7, sp, #0x0
+ 8000d9e: bd80         	pop	{r7, pc}
+
+08000da0 <_RNvCs4SDFJOLwvtW_7___rustc17rust_begin_unwind>:
+; fn panic(_info: &PanicInfo) -> ! {
+ 8000da0: b580         	push	{r7, lr}
+ 8000da2: af00         	add	r7, sp, #0x0
+;         atomic::compiler_fence(Ordering::SeqCst);
+ 8000da4: e7fe         	b	0x8000da4 <_RNvCs4SDFJOLwvtW_7___rustc17rust_begin_unwind+0x4> @ imm = #-0x4
+
+08000da6 <__cpsid>:
+ 8000da6: b672         	cpsid i
+ 8000da8: 4770         	bx	lr
+
+08000daa <__cpsie>:
+ 8000daa: b662         	cpsie i
+ 8000dac: 4770         	bx	lr
+
+08000dae <__delay>:
+ 8000dae: 0840         	lsrs	r0, r0, #0x1
+ 8000db0: 1c40         	adds	r0, r0, #0x1
+ 8000db2: 3801         	subs	r0, #0x1
+ 8000db4: d1fd         	bne	0x8000db2 <__delay+0x4> @ imm = #-0x6
+ 8000db6: 4770         	bx	lr
+
+08000db8 <__dsb>:
+ 8000db8: f3bf 8f4f    	dsb	sy
+ 8000dbc: 4770         	bx	lr
+
+08000dbe <__isb>:
+ 8000dbe: f3bf 8f6f    	isb	sy
+ 8000dc2: 4770         	bx	lr
+
+08000dc4 <__nop>:
+ 8000dc4: bf00         	nop
+ 8000dc6: 4770         	bx	lr
+
+08000dc8 <__primask_r>:
+ 8000dc8: f3ef 8010    	mrs	r0, primask
+ 8000dcc: 4770         	bx	lr
+
+08000dce <__aeabi_uidiv>:
+ 8000dce: b580         	push	{r7, lr}
+ 8000dd0: af00         	add	r7, sp, #0x0
+ 8000dd2: f000 f801    	bl	0x8000dd8 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403> @ imm = #0x2
+ 8000dd6: bd80         	pop	{r7, pc}
+
+08000dd8 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403>:
+ 8000dd8: b5f0         	push	{r4, r5, r6, r7, lr}
+ 8000dda: af03         	add	r7, sp, #0xc
+ 8000ddc: b083         	sub	sp, #0xc
+ 8000dde: 4602         	mov	r2, r0
+ 8000de0: 4288         	cmp	r0, r1
+ 8000de2: d203         	bhs	0x8000dec <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x14> @ imm = #0x6
+ 8000de4: 2000         	movs	r0, #0x0
+ 8000de6: 4611         	mov	r1, r2
+ 8000de8: b003         	add	sp, #0xc
+ 8000dea: bdf0         	pop	{r4, r5, r6, r7, pc}
+ 8000dec: 0c10         	lsrs	r0, r2, #0x10
+ 8000dee: 2600         	movs	r6, #0x0
+ 8000df0: 2310         	movs	r3, #0x10
+ 8000df2: 4281         	cmp	r1, r0
+ 8000df4: 4634         	mov	r4, r6
+ 8000df6: d930         	bls	0x8000e5a <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x82> @ imm = #0x60
+ 8000df8: 9402         	str	r4, [sp, #0x8]
+ 8000dfa: 4614         	mov	r4, r2
+ 8000dfc: d931         	bls	0x8000e62 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x8a> @ imm = #0x62
+ 8000dfe: 0a23         	lsrs	r3, r4, #0x8
+ 8000e00: 2008         	movs	r0, #0x8
+ 8000e02: 4299         	cmp	r1, r3
+ 8000e04: d932         	bls	0x8000e6c <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x94> @ imm = #0x64
+ 8000e06: 4633         	mov	r3, r6
+ 8000e08: d800         	bhi	0x8000e0c <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x34> @ imm = #0x0
+ 8000e0a: 4603         	mov	r3, r0
+ 8000e0c: 9301         	str	r3, [sp, #0x4]
+ 8000e0e: 0923         	lsrs	r3, r4, #0x4
+ 8000e10: 2004         	movs	r0, #0x4
+ 8000e12: 4299         	cmp	r1, r3
+ 8000e14: d92e         	bls	0x8000e74 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x9c> @ imm = #0x5c
+ 8000e16: 4633         	mov	r3, r6
+ 8000e18: d92f         	bls	0x8000e7a <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0xa2> @ imm = #0x5e
+ 8000e1a: 08a0         	lsrs	r0, r4, #0x2
+ 8000e1c: 2502         	movs	r5, #0x2
+ 8000e1e: 4281         	cmp	r1, r0
+ 8000e20: d930         	bls	0x8000e84 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0xac> @ imm = #0x60
+ 8000e22: 4630         	mov	r0, r6
+ 8000e24: d800         	bhi	0x8000e28 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x50> @ imm = #0x0
+ 8000e26: 4628         	mov	r0, r5
+ 8000e28: 9300         	str	r3, [sp]
+ 8000e2a: 0864         	lsrs	r4, r4, #0x1
+ 8000e2c: 2501         	movs	r5, #0x1
+ 8000e2e: 42a1         	cmp	r1, r4
+ 8000e30: 462c         	mov	r4, r5
+ 8000e32: d900         	bls	0x8000e36 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x5e> @ imm = #0x0
+ 8000e34: 4634         	mov	r4, r6
+ 8000e36: 9e02         	ldr	r6, [sp, #0x8]
+ 8000e38: 9b01         	ldr	r3, [sp, #0x4]
+ 8000e3a: 199e         	adds	r6, r3, r6
+ 8000e3c: 9b00         	ldr	r3, [sp]
+ 8000e3e: 18f3         	adds	r3, r6, r3
+ 8000e40: 1818         	adds	r0, r3, r0
+ 8000e42: 1903         	adds	r3, r0, r4
+ 8000e44: 409d         	lsls	r5, r3
+ 8000e46: 460c         	mov	r4, r1
+ 8000e48: 409c         	lsls	r4, r3
+ 8000e4a: 1b16         	subs	r6, r2, r4
+ 8000e4c: 428e         	cmp	r6, r1
+ 8000e4e: d21d         	bhs	0x8000e8c <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0xb4> @ imm = #0x3a
+ 8000e50: 4632         	mov	r2, r6
+ 8000e52: 4628         	mov	r0, r5
+ 8000e54: 4611         	mov	r1, r2
+ 8000e56: b003         	add	sp, #0xc
+ 8000e58: bdf0         	pop	{r4, r5, r6, r7, pc}
+ 8000e5a: 461c         	mov	r4, r3
+ 8000e5c: 9402         	str	r4, [sp, #0x8]
+ 8000e5e: 4614         	mov	r4, r2
+ 8000e60: d8cd         	bhi	0x8000dfe <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x26> @ imm = #-0x66
+ 8000e62: 4604         	mov	r4, r0
+ 8000e64: 0a23         	lsrs	r3, r4, #0x8
+ 8000e66: 2008         	movs	r0, #0x8
+ 8000e68: 4299         	cmp	r1, r3
+ 8000e6a: d8cc         	bhi	0x8000e06 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x2e> @ imm = #-0x68
+ 8000e6c: 461c         	mov	r4, r3
+ 8000e6e: 4633         	mov	r3, r6
+ 8000e70: d9cb         	bls	0x8000e0a <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x32> @ imm = #-0x6a
+ 8000e72: e7cb         	b	0x8000e0c <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x34> @ imm = #-0x6a
+ 8000e74: 461c         	mov	r4, r3
+ 8000e76: 4633         	mov	r3, r6
+ 8000e78: d8cf         	bhi	0x8000e1a <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x42> @ imm = #-0x62
+ 8000e7a: 4603         	mov	r3, r0
+ 8000e7c: 08a0         	lsrs	r0, r4, #0x2
+ 8000e7e: 2502         	movs	r5, #0x2
+ 8000e80: 4281         	cmp	r1, r0
+ 8000e82: d8ce         	bhi	0x8000e22 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x4a> @ imm = #-0x64
+ 8000e84: 4604         	mov	r4, r0
+ 8000e86: 4630         	mov	r0, r6
+ 8000e88: d9cd         	bls	0x8000e26 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x4e> @ imm = #-0x66
+ 8000e8a: e7cd         	b	0x8000e28 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x50> @ imm = #-0x66
+ 8000e8c: 2c00         	cmp	r4, #0x0
+ 8000e8e: d403         	bmi	0x8000e98 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0xc0> @ imm = #0x6
+ 8000e90: 4629         	mov	r1, r5
+ 8000e92: 4628         	mov	r0, r5
+ 8000e94: 4632         	mov	r2, r6
+ 8000e96: e014         	b	0x8000ec2 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0xea> @ imm = #0x28
+ 8000e98: 1e5b         	subs	r3, r3, #0x1
+ 8000e9a: 221f         	movs	r2, #0x1f
+ 8000e9c: 9300         	str	r3, [sp]
+ 8000e9e: 401a         	ands	r2, r3
+ 8000ea0: 2001         	movs	r0, #0x1
+ 8000ea2: 4090         	lsls	r0, r2
+ 8000ea4: 0864         	lsrs	r4, r4, #0x1
+ 8000ea6: 1b32         	subs	r2, r6, r4
+ 8000ea8: 17d3         	asrs	r3, r2, #0x1f
+ 8000eaa: 9301         	str	r3, [sp, #0x4]
+ 8000eac: 9002         	str	r0, [sp, #0x8]
+ 8000eae: 9b01         	ldr	r3, [sp, #0x4]
+ 8000eb0: 4398         	bics	r0, r3
+ 8000eb2: 2a00         	cmp	r2, #0x0
+ 8000eb4: da00         	bge	0x8000eb8 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0xe0> @ imm = #0x0
+ 8000eb6: 4632         	mov	r2, r6
+ 8000eb8: 4328         	orrs	r0, r5
+ 8000eba: 428a         	cmp	r2, r1
+ 8000ebc: 9902         	ldr	r1, [sp, #0x8]
+ 8000ebe: 9b00         	ldr	r3, [sp]
+ 8000ec0: d391         	blo	0x8000de6 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0xe> @ imm = #-0xde
+ 8000ec2: 1e49         	subs	r1, r1, #0x1
+ 8000ec4: 2b00         	cmp	r3, #0x0
+ 8000ec6: d00b         	beq	0x8000ee0 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x108> @ imm = #0x16
+ 8000ec8: 2603         	movs	r6, #0x3
+ 8000eca: 401e         	ands	r6, r3
+ 8000ecc: d00a         	beq	0x8000ee4 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x10c> @ imm = #0x14
+ 8000ece: 0055         	lsls	r5, r2, #0x1
+ 8000ed0: 1b2a         	subs	r2, r5, r4
+ 8000ed2: 1c52         	adds	r2, r2, #0x1
+ 8000ed4: d400         	bmi	0x8000ed8 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x100> @ imm = #0x0
+ 8000ed6: 4615         	mov	r5, r2
+ 8000ed8: 2e01         	cmp	r6, #0x1
+ 8000eda: d106         	bne	0x8000eea <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x112> @ imm = #0xc
+ 8000edc: 1e5a         	subs	r2, r3, #0x1
+ 8000ede: e013         	b	0x8000f08 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x130> @ imm = #0x26
+ 8000ee0: 4615         	mov	r5, r2
+ 8000ee2: e013         	b	0x8000f0c <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x134> @ imm = #0x26
+ 8000ee4: 4615         	mov	r5, r2
+ 8000ee6: 461a         	mov	r2, r3
+ 8000ee8: e00e         	b	0x8000f08 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x130> @ imm = #0x1c
+ 8000eea: 006d         	lsls	r5, r5, #0x1
+ 8000eec: 1b2a         	subs	r2, r5, r4
+ 8000eee: 1c52         	adds	r2, r2, #0x1
+ 8000ef0: d400         	bmi	0x8000ef4 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x11c> @ imm = #0x0
+ 8000ef2: 4615         	mov	r5, r2
+ 8000ef4: 2e02         	cmp	r6, #0x2
+ 8000ef6: d101         	bne	0x8000efc <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x124> @ imm = #0x2
+ 8000ef8: 1e9a         	subs	r2, r3, #0x2
+ 8000efa: e005         	b	0x8000f08 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x130> @ imm = #0xa
+ 8000efc: 006d         	lsls	r5, r5, #0x1
+ 8000efe: 1b2a         	subs	r2, r5, r4
+ 8000f00: 1c52         	adds	r2, r2, #0x1
+ 8000f02: d400         	bmi	0x8000f06 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x12e> @ imm = #0x0
+ 8000f04: 4615         	mov	r5, r2
+ 8000f06: 1eda         	subs	r2, r3, #0x3
+ 8000f08: 2b04         	cmp	r3, #0x4
+ 8000f0a: d20a         	bhs	0x8000f22 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x14a> @ imm = #0x14
+ 8000f0c: 221f         	movs	r2, #0x1f
+ 8000f0e: 4013         	ands	r3, r2
+ 8000f10: 462a         	mov	r2, r5
+ 8000f12: 40da         	lsrs	r2, r3
+ 8000f14: 4029         	ands	r1, r5
+ 8000f16: 4308         	orrs	r0, r1
+ 8000f18: 4611         	mov	r1, r2
+ 8000f1a: b003         	add	sp, #0xc
+ 8000f1c: bdf0         	pop	{r4, r5, r6, r7, pc}
+ 8000f1e: 1f12         	subs	r2, r2, #0x4
+ 8000f20: d0f4         	beq	0x8000f0c <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x134> @ imm = #-0x18
+ 8000f22: 006d         	lsls	r5, r5, #0x1
+ 8000f24: 1b2e         	subs	r6, r5, r4
+ 8000f26: 1c76         	adds	r6, r6, #0x1
+ 8000f28: d50c         	bpl	0x8000f44 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x16c> @ imm = #0x18
+ 8000f2a: 006d         	lsls	r5, r5, #0x1
+ 8000f2c: 1b2e         	subs	r6, r5, r4
+ 8000f2e: 1c76         	adds	r6, r6, #0x1
+ 8000f30: d50d         	bpl	0x8000f4e <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x176> @ imm = #0x1a
+ 8000f32: 006d         	lsls	r5, r5, #0x1
+ 8000f34: 1b2e         	subs	r6, r5, r4
+ 8000f36: 1c76         	adds	r6, r6, #0x1
+ 8000f38: d50e         	bpl	0x8000f58 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x180> @ imm = #0x1c
+ 8000f3a: 006d         	lsls	r5, r5, #0x1
+ 8000f3c: 1b2e         	subs	r6, r5, r4
+ 8000f3e: 1c76         	adds	r6, r6, #0x1
+ 8000f40: d4ed         	bmi	0x8000f1e <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x146> @ imm = #-0x26
+ 8000f42: e00e         	b	0x8000f62 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x18a> @ imm = #0x1c
+ 8000f44: 4635         	mov	r5, r6
+ 8000f46: 006d         	lsls	r5, r5, #0x1
+ 8000f48: 1b2e         	subs	r6, r5, r4
+ 8000f4a: 1c76         	adds	r6, r6, #0x1
+ 8000f4c: d4f1         	bmi	0x8000f32 <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x15a> @ imm = #-0x1e
+ 8000f4e: 4635         	mov	r5, r6
+ 8000f50: 006d         	lsls	r5, r5, #0x1
+ 8000f52: 1b2e         	subs	r6, r5, r4
+ 8000f54: 1c76         	adds	r6, r6, #0x1
+ 8000f56: d4f0         	bmi	0x8000f3a <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x162> @ imm = #-0x20
+ 8000f58: 4635         	mov	r5, r6
+ 8000f5a: 006d         	lsls	r5, r5, #0x1
+ 8000f5c: 1b2e         	subs	r6, r5, r4
+ 8000f5e: 1c76         	adds	r6, r6, #0x1
+ 8000f60: d4dd         	bmi	0x8000f1e <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x146> @ imm = #-0x46
+ 8000f62: 4635         	mov	r5, r6
+ 8000f64: e7db         	b	0x8000f1e <_RNvNtNtCshOQu8lSGvzf_17compiler_builtins3int19specialized_div_rem11u32_div_rem.llvm.13578224979854554403+0x146> @ imm = #-0x4a
+
+08000f66 <__aeabi_memclr8>:
+ 8000f66: b5b0         	push	{r4, r5, r7, lr}
+ 8000f68: af02         	add	r7, sp, #0x8
+ 8000f6a: 2904         	cmp	r1, #0x4
+ 8000f6c: d313         	blo	0x8000f96 <__aeabi_memclr8+0x30> @ imm = #0x26
+ 8000f6e: 1f0c         	subs	r4, r1, #0x4
+ 8000f70: 43e2         	mvns	r2, r4
+ 8000f72: 0712         	lsls	r2, r2, #0x1c
+ 8000f74: 0f92         	lsrs	r2, r2, #0x1e
+ 8000f76: d014         	beq	0x8000fa2 <__aeabi_memclr8+0x3c> @ imm = #0x28
+ 8000f78: 2500         	movs	r5, #0x0
+ 8000f7a: 4602         	mov	r2, r0
+ 8000f7c: c220         	stm	r2!, {r5}
+ 8000f7e: 0723         	lsls	r3, r4, #0x1c
+ 8000f80: 0f9b         	lsrs	r3, r3, #0x1e
+ 8000f82: 4623         	mov	r3, r4
+ 8000f84: d00f         	beq	0x8000fa6 <__aeabi_memclr8+0x40> @ imm = #0x1e
+ 8000f86: 6045         	str	r5, [r0, #0x4]
+ 8000f88: 220c         	movs	r2, #0xc
+ 8000f8a: 4022         	ands	r2, r4
+ 8000f8c: 2a04         	cmp	r2, #0x4
+ 8000f8e: d105         	bne	0x8000f9c <__aeabi_memclr8+0x36> @ imm = #0xa
+ 8000f90: 3908         	subs	r1, #0x8
+ 8000f92: 3008         	adds	r0, #0x8
+ 8000f94: e005         	b	0x8000fa2 <__aeabi_memclr8+0x3c> @ imm = #0xa
+ 8000f96: 4602         	mov	r2, r0
+ 8000f98: 460b         	mov	r3, r1
+ 8000f9a: e00f         	b	0x8000fbc <__aeabi_memclr8+0x56> @ imm = #0x1e
+ 8000f9c: 6085         	str	r5, [r0, #0x8]
+ 8000f9e: 390c         	subs	r1, #0xc
+ 8000fa0: 300c         	adds	r0, #0xc
+ 8000fa2: 460b         	mov	r3, r1
+ 8000fa4: 4602         	mov	r2, r0
+ 8000fa6: 2c0c         	cmp	r4, #0xc
+ 8000fa8: d308         	blo	0x8000fbc <__aeabi_memclr8+0x56> @ imm = #0x10
+ 8000faa: 2000         	movs	r0, #0x0
+ 8000fac: 6010         	str	r0, [r2]
+ 8000fae: 6050         	str	r0, [r2, #0x4]
+ 8000fb0: 6090         	str	r0, [r2, #0x8]
+ 8000fb2: 60d0         	str	r0, [r2, #0xc]
+ 8000fb4: 3210         	adds	r2, #0x10
+ 8000fb6: 3b10         	subs	r3, #0x10
+ 8000fb8: 2b03         	cmp	r3, #0x3
+ 8000fba: d8f7         	bhi	0x8000fac <__aeabi_memclr8+0x46> @ imm = #-0x12
+ 8000fbc: 18d0         	adds	r0, r2, r3
+ 8000fbe: 4282         	cmp	r2, r0
+ 8000fc0: d21a         	bhs	0x8000ff8 <__aeabi_memclr8+0x92> @ imm = #0x34
+ 8000fc2: 2403         	movs	r4, #0x3
+ 8000fc4: 401c         	ands	r4, r3
+ 8000fc6: 1e59         	subs	r1, r3, #0x1
+ 8000fc8: 2c00         	cmp	r4, #0x0
+ 8000fca: d00b         	beq	0x8000fe4 <__aeabi_memclr8+0x7e> @ imm = #0x16
+ 8000fcc: 2300         	movs	r3, #0x0
+ 8000fce: 7013         	strb	r3, [r2]
+ 8000fd0: 2c01         	cmp	r4, #0x1
+ 8000fd2: d103         	bne	0x8000fdc <__aeabi_memclr8+0x76> @ imm = #0x6
+ 8000fd4: 1c52         	adds	r2, r2, #0x1
+ 8000fd6: 2903         	cmp	r1, #0x3
+ 8000fd8: d206         	bhs	0x8000fe8 <__aeabi_memclr8+0x82> @ imm = #0xc
+ 8000fda: e00d         	b	0x8000ff8 <__aeabi_memclr8+0x92> @ imm = #0x1a
+ 8000fdc: 7053         	strb	r3, [r2, #0x1]
+ 8000fde: 2c02         	cmp	r4, #0x2
+ 8000fe0: d10b         	bne	0x8000ffa <__aeabi_memclr8+0x94> @ imm = #0x16
+ 8000fe2: 1c92         	adds	r2, r2, #0x2
+ 8000fe4: 2903         	cmp	r1, #0x3
+ 8000fe6: d307         	blo	0x8000ff8 <__aeabi_memclr8+0x92> @ imm = #0xe
+ 8000fe8: 2100         	movs	r1, #0x0
+ 8000fea: 70d1         	strb	r1, [r2, #0x3]
+ 8000fec: 7091         	strb	r1, [r2, #0x2]
+ 8000fee: 7051         	strb	r1, [r2, #0x1]
+ 8000ff0: 7011         	strb	r1, [r2]
+ 8000ff2: 1d12         	adds	r2, r2, #0x4
+ 8000ff4: 4282         	cmp	r2, r0
+ 8000ff6: d1f8         	bne	0x8000fea <__aeabi_memclr8+0x84> @ imm = #-0x10
+ 8000ff8: bdb0         	pop	{r4, r5, r7, pc}
+ 8000ffa: 7093         	strb	r3, [r2, #0x2]
+ 8000ffc: 1cd2         	adds	r2, r2, #0x3
+ 8000ffe: 2903         	cmp	r1, #0x3
+ 8001000: d2f2         	bhs	0x8000fe8 <__aeabi_memclr8+0x82> @ imm = #-0x1c
+ 8001002: e7f9         	b	0x8000ff8 <__aeabi_memclr8+0x92> @ imm = #-0xe
+
+08001004 <__aeabi_memcpy4>:
+ 8001004: b5f0         	push	{r4, r5, r6, r7, lr}
+ 8001006: af03         	add	r7, sp, #0xc
+ 8001008: b081         	sub	sp, #0x4
+ 800100a: 2a04         	cmp	r2, #0x4
+ 800100c: d328         	blo	0x8001060 <__aeabi_memcpy4+0x5c> @ imm = #0x50
+ 800100e: 1f13         	subs	r3, r2, #0x4
+ 8001010: 43dc         	mvns	r4, r3
+ 8001012: 0724         	lsls	r4, r4, #0x1c
+ 8001014: 0fa4         	lsrs	r4, r4, #0x1e
+ 8001016: d014         	beq	0x8001042 <__aeabi_memcpy4+0x3e> @ imm = #0x28
+ 8001018: 4614         	mov	r4, r2
+ 800101a: 460d         	mov	r5, r1
+ 800101c: c904         	ldm	r1!, {r2}
+ 800101e: 4606         	mov	r6, r0
+ 8001020: c004         	stm	r0!, {r2}
+ 8001022: 071a         	lsls	r2, r3, #0x1c
+ 8001024: 0f92         	lsrs	r2, r2, #0x1e
+ 8001026: 461a         	mov	r2, r3
+ 8001028: d00b         	beq	0x8001042 <__aeabi_memcpy4+0x3e> @ imm = #0x16
+ 800102a: 4629         	mov	r1, r5
+ 800102c: 686a         	ldr	r2, [r5, #0x4]
+ 800102e: 4630         	mov	r0, r6
+ 8001030: 6072         	str	r2, [r6, #0x4]
+ 8001032: 220c         	movs	r2, #0xc
+ 8001034: 401a         	ands	r2, r3
+ 8001036: 2a04         	cmp	r2, #0x4
+ 8001038: d116         	bne	0x8001068 <__aeabi_memcpy4+0x64> @ imm = #0x2c
+ 800103a: 4622         	mov	r2, r4
+ 800103c: 3a08         	subs	r2, #0x8
+ 800103e: 3108         	adds	r1, #0x8
+ 8001040: 3008         	adds	r0, #0x8
+ 8001042: 2b0c         	cmp	r3, #0xc
+ 8001044: d30c         	blo	0x8001060 <__aeabi_memcpy4+0x5c> @ imm = #0x18
+ 8001046: 680b         	ldr	r3, [r1]
+ 8001048: 6003         	str	r3, [r0]
+ 800104a: 684b         	ldr	r3, [r1, #0x4]
+ 800104c: 6043         	str	r3, [r0, #0x4]
+ 800104e: 688b         	ldr	r3, [r1, #0x8]
+ 8001050: 6083         	str	r3, [r0, #0x8]
+ 8001052: 68cb         	ldr	r3, [r1, #0xc]
+ 8001054: 60c3         	str	r3, [r0, #0xc]
+ 8001056: 3110         	adds	r1, #0x10
+ 8001058: 3010         	adds	r0, #0x10
+ 800105a: 3a10         	subs	r2, #0x10
+ 800105c: 2a03         	cmp	r2, #0x3
+ 800105e: d8f2         	bhi	0x8001046 <__aeabi_memcpy4+0x42> @ imm = #-0x1c
+ 8001060: f000 f80b    	bl	0x800107a <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy> @ imm = #0x16
+ 8001064: b001         	add	sp, #0x4
+ 8001066: bdf0         	pop	{r4, r5, r6, r7, pc}
+ 8001068: 688a         	ldr	r2, [r1, #0x8]
+ 800106a: 6082         	str	r2, [r0, #0x8]
+ 800106c: 4622         	mov	r2, r4
+ 800106e: 3a0c         	subs	r2, #0xc
+ 8001070: 310c         	adds	r1, #0xc
+ 8001072: 300c         	adds	r0, #0xc
+ 8001074: 2b0c         	cmp	r3, #0xc
+ 8001076: d2e6         	bhs	0x8001046 <__aeabi_memcpy4+0x42> @ imm = #-0x34
+ 8001078: e7f2         	b	0x8001060 <__aeabi_memcpy4+0x5c> @ imm = #-0x1c
+
+0800107a <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy>:
+ 800107a: b5f0         	push	{r4, r5, r6, r7, lr}
+ 800107c: af03         	add	r7, sp, #0xc
+ 800107e: b08f         	sub	sp, #0x3c
+ 8001080: 2a10         	cmp	r2, #0x10
+ 8001082: d315         	blo	0x80010b0 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x36> @ imm = #0x2a
+ 8001084: 920b         	str	r2, [sp, #0x2c]
+ 8001086: 4242         	rsbs	r2, r0, #0
+ 8001088: 2303         	movs	r3, #0x3
+ 800108a: 9308         	str	r3, [sp, #0x20]
+ 800108c: 401a         	ands	r2, r3
+ 800108e: 1885         	adds	r5, r0, r2
+ 8001090: 900a         	str	r0, [sp, #0x28]
+ 8001092: 42a8         	cmp	r0, r5
+ 8001094: d22a         	bhs	0x80010ec <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x72> @ imm = #0x54
+ 8001096: 1e54         	subs	r4, r2, #0x1
+ 8001098: 2a00         	cmp	r2, #0x0
+ 800109a: 980a         	ldr	r0, [sp, #0x28]
+ 800109c: 4606         	mov	r6, r0
+ 800109e: 460b         	mov	r3, r1
+ 80010a0: d016         	beq	0x80010d0 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x56> @ imm = #0x2c
+ 80010a2: 780b         	ldrb	r3, [r1]
+ 80010a4: 7003         	strb	r3, [r0]
+ 80010a6: 2a01         	cmp	r2, #0x1
+ 80010a8: d107         	bne	0x80010ba <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x40> @ imm = #0xe
+ 80010aa: 1c4b         	adds	r3, r1, #0x1
+ 80010ac: 1c46         	adds	r6, r0, #0x1
+ 80010ae: e00f         	b	0x80010d0 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x56> @ imm = #0x1e
+ 80010b0: 4603         	mov	r3, r0
+ 80010b2: 189c         	adds	r4, r3, r2
+ 80010b4: 42a3         	cmp	r3, r4
+ 80010b6: d341         	blo	0x800113c <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xc2> @ imm = #0x82
+ 80010b8: e062         	b	0x8001180 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x106> @ imm = #0xc4
+ 80010ba: 784b         	ldrb	r3, [r1, #0x1]
+ 80010bc: 7043         	strb	r3, [r0, #0x1]
+ 80010be: 2a02         	cmp	r2, #0x2
+ 80010c0: d102         	bne	0x80010c8 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x4e> @ imm = #0x4
+ 80010c2: 1c8b         	adds	r3, r1, #0x2
+ 80010c4: 1c86         	adds	r6, r0, #0x2
+ 80010c6: e003         	b	0x80010d0 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x56> @ imm = #0x6
+ 80010c8: 788b         	ldrb	r3, [r1, #0x2]
+ 80010ca: 7083         	strb	r3, [r0, #0x2]
+ 80010cc: 1ccb         	adds	r3, r1, #0x3
+ 80010ce: 1cc6         	adds	r6, r0, #0x3
+ 80010d0: 2c03         	cmp	r4, #0x3
+ 80010d2: d30b         	blo	0x80010ec <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x72> @ imm = #0x16
+ 80010d4: 781c         	ldrb	r4, [r3]
+ 80010d6: 7034         	strb	r4, [r6]
+ 80010d8: 785c         	ldrb	r4, [r3, #0x1]
+ 80010da: 7074         	strb	r4, [r6, #0x1]
+ 80010dc: 789c         	ldrb	r4, [r3, #0x2]
+ 80010de: 70b4         	strb	r4, [r6, #0x2]
+ 80010e0: 78dc         	ldrb	r4, [r3, #0x3]
+ 80010e2: 70f4         	strb	r4, [r6, #0x3]
+ 80010e4: 1d1b         	adds	r3, r3, #0x4
+ 80010e6: 1d36         	adds	r6, r6, #0x4
+ 80010e8: 42ae         	cmp	r6, r5
+ 80010ea: d1f3         	bne	0x80010d4 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x5a> @ imm = #-0x1a
+ 80010ec: 980b         	ldr	r0, [sp, #0x2c]
+ 80010ee: 1a80         	subs	r0, r0, r2
+ 80010f0: 900b         	str	r0, [sp, #0x2c]
+ 80010f2: 9c08         	ldr	r4, [sp, #0x20]
+ 80010f4: 43a0         	bics	r0, r4
+ 80010f6: 182b         	adds	r3, r5, r0
+ 80010f8: 188e         	adds	r6, r1, r2
+ 80010fa: 9609         	str	r6, [sp, #0x24]
+ 80010fc: 4026         	ands	r6, r4
+ 80010fe: 9007         	str	r0, [sp, #0x1c]
+ 8001100: d147         	bne	0x8001192 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x118> @ imm = #0x8e
+ 8001102: 429d         	cmp	r5, r3
+ 8001104: 9a0b         	ldr	r2, [sp, #0x2c]
+ 8001106: 9e09         	ldr	r6, [sp, #0x24]
+ 8001108: d211         	bhs	0x800112e <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xb4> @ imm = #0x22
+ 800110a: 4631         	mov	r1, r6
+ 800110c: 6808         	ldr	r0, [r1]
+ 800110e: c501         	stm	r5!, {r0}
+ 8001110: 429d         	cmp	r5, r3
+ 8001112: d20c         	bhs	0x800112e <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xb4> @ imm = #0x18
+ 8001114: 6848         	ldr	r0, [r1, #0x4]
+ 8001116: c501         	stm	r5!, {r0}
+ 8001118: 429d         	cmp	r5, r3
+ 800111a: d208         	bhs	0x800112e <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xb4> @ imm = #0x10
+ 800111c: 6888         	ldr	r0, [r1, #0x8]
+ 800111e: c501         	stm	r5!, {r0}
+ 8001120: 429d         	cmp	r5, r3
+ 8001122: d204         	bhs	0x800112e <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xb4> @ imm = #0x8
+ 8001124: 68c8         	ldr	r0, [r1, #0xc]
+ 8001126: c501         	stm	r5!, {r0}
+ 8001128: 3110         	adds	r1, #0x10
+ 800112a: 429d         	cmp	r5, r3
+ 800112c: d3ee         	blo	0x800110c <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x92> @ imm = #-0x24
+ 800112e: 4022         	ands	r2, r4
+ 8001130: 9807         	ldr	r0, [sp, #0x1c]
+ 8001132: 1831         	adds	r1, r6, r0
+ 8001134: 980a         	ldr	r0, [sp, #0x28]
+ 8001136: 189c         	adds	r4, r3, r2
+ 8001138: 42a3         	cmp	r3, r4
+ 800113a: d221         	bhs	0x8001180 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x106> @ imm = #0x42
+ 800113c: 2503         	movs	r5, #0x3
+ 800113e: 4015         	ands	r5, r2
+ 8001140: 1e52         	subs	r2, r2, #0x1
+ 8001142: 2d00         	cmp	r5, #0x0
+ 8001144: d00e         	beq	0x8001164 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xea> @ imm = #0x1c
+ 8001146: 780e         	ldrb	r6, [r1]
+ 8001148: 701e         	strb	r6, [r3]
+ 800114a: 2d01         	cmp	r5, #0x1
+ 800114c: d104         	bne	0x8001158 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xde> @ imm = #0x8
+ 800114e: 1c49         	adds	r1, r1, #0x1
+ 8001150: 1c5b         	adds	r3, r3, #0x1
+ 8001152: 2a03         	cmp	r2, #0x3
+ 8001154: d208         	bhs	0x8001168 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xee> @ imm = #0x10
+ 8001156: e013         	b	0x8001180 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x106> @ imm = #0x26
+ 8001158: 784e         	ldrb	r6, [r1, #0x1]
+ 800115a: 705e         	strb	r6, [r3, #0x1]
+ 800115c: 2d02         	cmp	r5, #0x2
+ 800115e: d111         	bne	0x8001184 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x10a> @ imm = #0x22
+ 8001160: 1c89         	adds	r1, r1, #0x2
+ 8001162: 1c9b         	adds	r3, r3, #0x2
+ 8001164: 2a03         	cmp	r2, #0x3
+ 8001166: d30b         	blo	0x8001180 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x106> @ imm = #0x16
+ 8001168: 780a         	ldrb	r2, [r1]
+ 800116a: 701a         	strb	r2, [r3]
+ 800116c: 784a         	ldrb	r2, [r1, #0x1]
+ 800116e: 705a         	strb	r2, [r3, #0x1]
+ 8001170: 788a         	ldrb	r2, [r1, #0x2]
+ 8001172: 709a         	strb	r2, [r3, #0x2]
+ 8001174: 78ca         	ldrb	r2, [r1, #0x3]
+ 8001176: 70da         	strb	r2, [r3, #0x3]
+ 8001178: 1d09         	adds	r1, r1, #0x4
+ 800117a: 1d1b         	adds	r3, r3, #0x4
+ 800117c: 42a3         	cmp	r3, r4
+ 800117e: d1f3         	bne	0x8001168 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xee> @ imm = #-0x1a
+ 8001180: b00f         	add	sp, #0x3c
+ 8001182: bdf0         	pop	{r4, r5, r6, r7, pc}
+ 8001184: 788d         	ldrb	r5, [r1, #0x2]
+ 8001186: 709d         	strb	r5, [r3, #0x2]
+ 8001188: 1cc9         	adds	r1, r1, #0x3
+ 800118a: 1cdb         	adds	r3, r3, #0x3
+ 800118c: 2a03         	cmp	r2, #0x3
+ 800118e: d2eb         	bhs	0x8001168 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xee> @ imm = #-0x2a
+ 8001190: e7f6         	b	0x8001180 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x106> @ imm = #-0x14
+ 8001192: 2400         	movs	r4, #0x0
+ 8001194: 9406         	str	r4, [sp, #0x18]
+ 8001196: 940e         	str	r4, [sp, #0x38]
+ 8001198: ac0e         	add	r4, sp, #0x38
+ 800119a: 19a4         	adds	r4, r4, r6
+ 800119c: 9405         	str	r4, [sp, #0x14]
+ 800119e: 2404         	movs	r4, #0x4
+ 80011a0: 1ba4         	subs	r4, r4, r6
+ 80011a2: 9404         	str	r4, [sp, #0x10]
+ 80011a4: 07e4         	lsls	r4, r4, #0x1f
+ 80011a6: 9600         	str	r6, [sp]
+ 80011a8: d006         	beq	0x80011b8 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x13e> @ imm = #0xc
+ 80011aa: 9c09         	ldr	r4, [sp, #0x24]
+ 80011ac: 7824         	ldrb	r4, [r4]
+ 80011ae: 9e05         	ldr	r6, [sp, #0x14]
+ 80011b0: 7034         	strb	r4, [r6]
+ 80011b2: 9e00         	ldr	r6, [sp]
+ 80011b4: 2401         	movs	r4, #0x1
+ 80011b6: 9406         	str	r4, [sp, #0x18]
+ 80011b8: 9c04         	ldr	r4, [sp, #0x10]
+ 80011ba: 07a4         	lsls	r4, r4, #0x1e
+ 80011bc: d508         	bpl	0x80011d0 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x156> @ imm = #0x10
+ 80011be: 9c09         	ldr	r4, [sp, #0x24]
+ 80011c0: 9204         	str	r2, [sp, #0x10]
+ 80011c2: 9a06         	ldr	r2, [sp, #0x18]
+ 80011c4: 5aa4         	ldrh	r4, [r4, r2]
+ 80011c6: 9e05         	ldr	r6, [sp, #0x14]
+ 80011c8: 9a06         	ldr	r2, [sp, #0x18]
+ 80011ca: 52b4         	strh	r4, [r6, r2]
+ 80011cc: 9a04         	ldr	r2, [sp, #0x10]
+ 80011ce: 9e00         	ldr	r6, [sp]
+ 80011d0: 00f4         	lsls	r4, r6, #0x3
+ 80011d2: 9403         	str	r4, [sp, #0xc]
+ 80011d4: 9c0e         	ldr	r4, [sp, #0x38]
+ 80011d6: 9406         	str	r4, [sp, #0x18]
+ 80011d8: 1d2c         	adds	r4, r5, #0x4
+ 80011da: 429c         	cmp	r4, r3
+ 80011dc: d236         	bhs	0x800124c <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x1d2> @ imm = #0x6c
+ 80011de: 4274         	rsbs	r4, r6, #0
+ 80011e0: 1909         	adds	r1, r1, r4
+ 80011e2: 9105         	str	r1, [sp, #0x14]
+ 80011e4: 9d03         	ldr	r5, [sp, #0xc]
+ 80011e6: 4269         	rsbs	r1, r5, #0
+ 80011e8: 2418         	movs	r4, #0x18
+ 80011ea: 400c         	ands	r4, r1
+ 80011ec: 9402         	str	r4, [sp, #0x8]
+ 80011ee: 990a         	ldr	r1, [sp, #0x28]
+ 80011f0: 9104         	str	r1, [sp, #0x10]
+ 80011f2: 4629         	mov	r1, r5
+ 80011f4: 9c06         	ldr	r4, [sp, #0x18]
+ 80011f6: 40cc         	lsrs	r4, r1
+ 80011f8: 9406         	str	r4, [sp, #0x18]
+ 80011fa: 9905         	ldr	r1, [sp, #0x14]
+ 80011fc: 1889         	adds	r1, r1, r2
+ 80011fe: 9101         	str	r1, [sp, #0x4]
+ 8001200: 6849         	ldr	r1, [r1, #0x4]
+ 8001202: 460c         	mov	r4, r1
+ 8001204: 9d02         	ldr	r5, [sp, #0x8]
+ 8001206: 40ac         	lsls	r4, r5
+ 8001208: 9d06         	ldr	r5, [sp, #0x18]
+ 800120a: 432c         	orrs	r4, r5
+ 800120c: 9d04         	ldr	r5, [sp, #0x10]
+ 800120e: 50ac         	str	r4, [r5, r2]
+ 8001210: 18ad         	adds	r5, r5, r2
+ 8001212: 462c         	mov	r4, r5
+ 8001214: 3408         	adds	r4, #0x8
+ 8001216: 429c         	cmp	r4, r3
+ 8001218: d21c         	bhs	0x8001254 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x1da> @ imm = #0x38
+ 800121a: 9c03         	ldr	r4, [sp, #0xc]
+ 800121c: 40e1         	lsrs	r1, r4
+ 800121e: 9c01         	ldr	r4, [sp, #0x4]
+ 8001220: 68a4         	ldr	r4, [r4, #0x8]
+ 8001222: 9406         	str	r4, [sp, #0x18]
+ 8001224: 9501         	str	r5, [sp, #0x4]
+ 8001226: 9d02         	ldr	r5, [sp, #0x8]
+ 8001228: 40ac         	lsls	r4, r5
+ 800122a: 430c         	orrs	r4, r1
+ 800122c: 9901         	ldr	r1, [sp, #0x4]
+ 800122e: 604c         	str	r4, [r1, #0x4]
+ 8001230: 9904         	ldr	r1, [sp, #0x10]
+ 8001232: 3108         	adds	r1, #0x8
+ 8001234: 9104         	str	r1, [sp, #0x10]
+ 8001236: 188d         	adds	r5, r1, r2
+ 8001238: 1d29         	adds	r1, r5, #0x4
+ 800123a: 9c05         	ldr	r4, [sp, #0x14]
+ 800123c: 3408         	adds	r4, #0x8
+ 800123e: 9405         	str	r4, [sp, #0x14]
+ 8001240: 4299         	cmp	r1, r3
+ 8001242: 9903         	ldr	r1, [sp, #0xc]
+ 8001244: d3d6         	blo	0x80011f4 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x17a> @ imm = #-0x54
+ 8001246: 9805         	ldr	r0, [sp, #0x14]
+ 8001248: 1880         	adds	r0, r0, r2
+ 800124a: e001         	b	0x8001250 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x1d6> @ imm = #0x2
+ 800124c: 9809         	ldr	r0, [sp, #0x24]
+ 800124e: 1b80         	subs	r0, r0, r6
+ 8001250: 9005         	str	r0, [sp, #0x14]
+ 8001252: e004         	b	0x800125e <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x1e4> @ imm = #0x8
+ 8001254: 9801         	ldr	r0, [sp, #0x4]
+ 8001256: 1d00         	adds	r0, r0, #0x4
+ 8001258: 9005         	str	r0, [sp, #0x14]
+ 800125a: 1d2d         	adds	r5, r5, #0x4
+ 800125c: 9106         	str	r1, [sp, #0x18]
+ 800125e: a80d         	add	r0, sp, #0x34
+ 8001260: 2100         	movs	r1, #0x0
+ 8001262: 9004         	str	r0, [sp, #0x10]
+ 8001264: 7001         	strb	r1, [r0]
+ 8001266: a80c         	add	r0, sp, #0x30
+ 8001268: 7001         	strb	r1, [r0]
+ 800126a: 2e01         	cmp	r6, #0x1
+ 800126c: 460e         	mov	r6, r1
+ 800126e: 460c         	mov	r4, r1
+ 8001270: 9102         	str	r1, [sp, #0x8]
+ 8001272: 9a0b         	ldr	r2, [sp, #0x2c]
+ 8001274: d009         	beq	0x800128a <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x210> @ imm = #0x12
+ 8001276: 9c05         	ldr	r4, [sp, #0x14]
+ 8001278: 7960         	ldrb	r0, [r4, #0x5]
+ 800127a: 7926         	ldrb	r6, [r4, #0x4]
+ 800127c: ac0d         	add	r4, sp, #0x34
+ 800127e: 7026         	strb	r6, [r4]
+ 8001280: 0204         	lsls	r4, r0, #0x8
+ 8001282: 2002         	movs	r0, #0x2
+ 8001284: 9002         	str	r0, [sp, #0x8]
+ 8001286: a80c         	add	r0, sp, #0x30
+ 8001288: 9004         	str	r0, [sp, #0x10]
+ 800128a: 9809         	ldr	r0, [sp, #0x24]
+ 800128c: 07c0         	lsls	r0, r0, #0x1f
+ 800128e: d00a         	beq	0x80012a6 <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x22c> @ imm = #0x14
+ 8001290: 9805         	ldr	r0, [sp, #0x14]
+ 8001292: 1d00         	adds	r0, r0, #0x4
+ 8001294: 9902         	ldr	r1, [sp, #0x8]
+ 8001296: 5c40         	ldrb	r0, [r0, r1]
+ 8001298: 9904         	ldr	r1, [sp, #0x10]
+ 800129a: 7008         	strb	r0, [r1]
+ 800129c: a80d         	add	r0, sp, #0x34
+ 800129e: 7806         	ldrb	r6, [r0]
+ 80012a0: a80c         	add	r0, sp, #0x30
+ 80012a2: 7800         	ldrb	r0, [r0]
+ 80012a4: 0401         	lsls	r1, r0, #0x10
+ 80012a6: 9605         	str	r6, [sp, #0x14]
+ 80012a8: 9803         	ldr	r0, [sp, #0xc]
+ 80012aa: 4240         	rsbs	r0, r0, #0
+ 80012ac: 9004         	str	r0, [sp, #0x10]
+ 80012ae: 2618         	movs	r6, #0x18
+ 80012b0: 9804         	ldr	r0, [sp, #0x10]
+ 80012b2: 4006         	ands	r6, r0
+ 80012b4: 430c         	orrs	r4, r1
+ 80012b6: 9905         	ldr	r1, [sp, #0x14]
+ 80012b8: 430c         	orrs	r4, r1
+ 80012ba: 40b4         	lsls	r4, r6
+ 80012bc: 9906         	ldr	r1, [sp, #0x18]
+ 80012be: 9803         	ldr	r0, [sp, #0xc]
+ 80012c0: 40c1         	lsrs	r1, r0
+ 80012c2: 4321         	orrs	r1, r4
+ 80012c4: 6029         	str	r1, [r5]
+ 80012c6: 9c08         	ldr	r4, [sp, #0x20]
+ 80012c8: 9e09         	ldr	r6, [sp, #0x24]
+ 80012ca: e730         	b	0x800112e <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0xb4> @ imm = #-0x1a0
+
+080012cc <HardFault_>:
+; pub unsafe extern "C" fn HardFault_() -> ! {
+ 80012cc: b580         	push	{r7, lr}
+ 80012ce: af00         	add	r7, sp, #0x0
+;     loop {}
+ 80012d0: e7fe         	b	0x80012d0 <HardFault_+0x4> @ imm = #-0x4
+ 80012d2: d4d4         	bmi	0x800127e <_RNvNtCshOQu8lSGvzf_17compiler_builtins3mem6memcpy+0x204> @ imm = #-0x58

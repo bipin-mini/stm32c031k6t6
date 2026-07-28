@@ -1,0 +1,38 @@
+[package]
+name = "bsp"
+version = "0.1.0"
+edition = "2024"
+authors = ["Bipin <you@example.com>"]
+description = "board support package"
+license = "MIT"
+
+[dependencies]
+cortex-m = "0.7.7"
+cortex-m-rt= "0.7.5"
+cortex-m-rtic= "1.1.4"
+stm32c0 = { version = "0.16.0", features = ["stm32c031", "rt"] }
+panic-halt = "0.2.0"
+systick-monotonic = "1.0.1"
+
+
+
+[profile.dev]
+opt-level = "z"
+debug = true
+lto = false
+codegen-units = 1
+incremental = false
+
+
+[profile.release]
+opt-level = "s"          # better timing than "z"
+lto = "fat"             # full optimization
+codegen-units = 1
+incremental = false
+
+panic = "abort"
+overflow-checks = false
+debug-assertions = false
+
+debug = true           # set true only during bring-up
+strip = false
