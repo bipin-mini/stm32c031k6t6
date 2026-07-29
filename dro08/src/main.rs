@@ -99,20 +99,28 @@ mod app {
         )
     }
 
-    #[task(priority = 2, local = [uart])]
+    #[task(
+    priority = 2,
+    local = [
+        uart,
+        rx_buf: [u8; 256] = [0; 256],
+    ]
+)]
     fn uart_task(ctx: uart_task::Context) {
-        // Direct mutable access without locks or critical sections
         let uart = ctx.local.uart;
+        let rx_buf = ctx.local.rx_buf;
 
-        // 1. Advance UART DMA state machine
+        // Advance UART state machine
         uart.poll();
 
+        // Echo received frame
         if !uart.tx_busy() {
-            let msg = b"hello\r\n";
-            let _ = uart.send_data(msg);
+            if let Some(len) = uart.receive_data(rx_buf) {
+                let _ = uart.send_data(&rx_buf[..len]);
+            }
         }
 
-        uart_task::spawn_after(1000.millis()).ok();
+        uart_task::spawn_after(1.millis()).ok();
     }
 
     #[idle]

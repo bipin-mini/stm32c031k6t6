@@ -44,10 +44,11 @@ impl UartDma {
             .write(|w| unsafe { w.rto().bits(RX_TIMEOUT as u32) });
         usart.cr2().modify(|_, w| w.rtoen().set_bit());
 
-        // RS485 Hardware DE setup (Hardware DEM active high)
-        usart
-            .cr3()
-            .modify(|_, w| w.dem().set_bit().dep().set_bit());
+        // RS485 Hardware DE setup: Hardware DEM active HIGH (dep = 0)
+        usart.cr3().modify(|_, w| w.dem().set_bit().dep().set_bit());
+
+        // Clear Transmission Complete flag initially
+        usart.icr().write(|w| w.tccf().bit(true));
 
         // Enable USART DMA RX/TX requests
         usart
@@ -83,6 +84,7 @@ impl UartDma {
     }
 
     /// Primary state machine processing — call periodically inside an RTIC task.
+    /// Primary state machine processing — call periodically inside an RTIC task.
     pub fn poll(&mut self) {
         let isr = self.usart.isr().read();
 
@@ -110,25 +112,40 @@ impl UartDma {
 
         // 3. Transmission finished (TC flag set after final stop bit)
         if self.tx_busy && isr.tc().bit_is_set() {
+            // Clear Transmission Complete flag
             self.usart.icr().write(|w| w.tccf().bit(true));
 
+            // Disable DMA TX channel
             let dma = unsafe { &*pac::DMA::ptr() };
             dma.ch(1).cr().modify(|_, w| w.en().clear_bit());
 
+            // Clear transmission flag
             self.tx_busy = false;
 
-            // Automatically revert to listening mode on RS485 bus
+            // Re-arm RX DMA for listening mode
             self.start_rx_dma();
         }
     }
 
     /// Returns `Some(&[u8])` with the received frame if a complete payload is available.
-    pub fn receive_data(&self) -> Option<&[u8]> {
-        if self.rx_ready {
-            Some(&self.rx_buf[..self.rx_len])
-        } else {
-            None
+    /// Copies the received frame into `dst`.
+    /// Returns the number of bytes copied and immediately re-arms RX DMA.
+    pub fn receive_data(&mut self, dst: &mut [u8]) -> Option<usize> {
+        if !self.rx_ready {
+            return None;
         }
+
+        let len = self.rx_len.min(dst.len());
+
+        dst[..len].copy_from_slice(&self.rx_buf[..len]);
+
+        // Immediately prepare for the next frame.
+        self.rx_ready = false;
+        self.rx_len = 0;
+
+        self.start_rx_dma();
+
+        Some(len)
     }
 
     /// Transmits a payload slice via DMA and toggles RS485 direction pin (DEM) high.
@@ -147,9 +164,6 @@ impl UartDma {
         self.rx_len = 0;
 
         self.stop_rx_dma();
-
-        // Clear Transmission Complete flag before starting DMA
-        self.usart.icr().write(|w| w.tccf().bit(true));
 
         self.tx_busy = true;
         self.start_tx_dma();
@@ -185,9 +199,9 @@ impl UartDma {
         dma.ch(0).cr().modify(|_, w| w.en().clear_bit());
         dma.ch(1).cr().modify(|_, w| w.en().clear_bit());
 
-        // CH0 -> USART1_RX (Req 40), CH1 -> USART1_TX (Req 41)
-        dmamux.ccr(0).write(|w| unsafe { w.dmareq_id().bits(40) });
-        dmamux.ccr(1).write(|w| unsafe { w.dmareq_id().bits(41) });
+        // CH0 -> USART1_RX (Req 50), CH1 -> USART1_TX (Req 51)
+        dmamux.ccr(0).write(|w| unsafe { w.dmareq_id().bits(50) });
+        dmamux.ccr(1).write(|w| unsafe { w.dmareq_id().bits(51) });
 
         // RX DMA Setup (CH0)
         dma.ch(0)
@@ -275,6 +289,9 @@ impl UartDma {
 
     fn start_tx_dma(&mut self) {
         let dma = unsafe { &*pac::DMA::ptr() };
+
+        // Clear TC flag BEFORE starting DMA
+        self.usart.icr().write(|w| w.tccf().bit(true));
 
         dma.ch(1).cr().modify(|_, w| w.en().clear_bit());
         dma.ifcr().write(|w| unsafe { w.bits(0x0F << 4) }); // Clear CH1 flags
