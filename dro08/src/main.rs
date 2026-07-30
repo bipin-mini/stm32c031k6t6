@@ -17,6 +17,10 @@ mod storage {
     pub mod eeprom;
 }
 
+mod protocol {
+    pub mod modbus;
+}
+
 use bsp::SYSCLK_HZ;
 use rtic::app;
 use systick_monotonic::*;
@@ -28,6 +32,7 @@ mod app {
     use crate::drivers::relay::Relay::{RL1, RL2};
     use crate::drivers::relay::RelayDriver;
     use crate::drivers::{encoder::Encoder, tm1638::Tm1638, uart_dma::UartDma};
+    use crate::protocol::modbus::{Modbus,HoldingRegisters,DEFAULT_ADDRESS};
     use crate::storage::eeprom::Eeprom;
 
     #[monotonic(binds = SysTick, default = true)]
@@ -36,6 +41,10 @@ mod app {
     #[shared]
     struct Shared {
         encoder_count: i32,
+        _scale_factor: u32,
+        _limit_1: i32,
+        _limit_2: i32,
+        _slave_addr: u8,
     }
 
     #[local]
@@ -45,6 +54,7 @@ mod app {
         encoder: Encoder,
         eeprom: Eeprom,
         relay: RelayDriver,
+        modbus: Modbus,
     }
 
     #[init]
@@ -62,6 +72,9 @@ mod app {
 
         // Create UART driver.
         let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
+
+        // Create Modbus
+        let modbus = Modbus::new(DEFAULT_ADDRESS);
 
         //Create Relay driver
         let relay = RelayDriver::new();
@@ -87,13 +100,20 @@ mod app {
         uart_task::spawn().ok();
 
         (
-            Shared { encoder_count: 0 },
+            Shared {
+                encoder_count: 0,
+                _scale_factor: 1,
+                _limit_1: 100,
+                _limit_2: 200,
+                _slave_addr: 127,
+            },
             Local {
                 uart,
                 tm1638,
                 encoder,
                 eeprom,
                 relay,
+                modbus,
             },
             init::Monotonics(mono),
         )
@@ -103,26 +123,42 @@ mod app {
     priority = 2,
     local = [
         uart,
+        modbus,
         rx_buf: [u8; 256] = [0; 256],
-    ]
+        tx_buf: [u8; 256] = [0; 256],
+    ],
+    shared = [encoder_count]
 )]
-    fn uart_task(ctx: uart_task::Context) {
+    fn uart_task(mut ctx: uart_task::Context) {
         let uart = ctx.local.uart;
+        let modbus = ctx.local.modbus;
         let rx_buf = ctx.local.rx_buf;
+        let tx_buf = ctx.local.tx_buf;
 
-        // Advance UART state machine
         uart.poll();
 
-        // Echo received frame
         if !uart.tx_busy() {
-            if let Some(len) = uart.receive_data(rx_buf) {
-                let _ = uart.send_data(&rx_buf[..len]);
+            if let Some(rx_len) = uart.receive_data(rx_buf) {
+                // Read shared encoder count to update registers dynamically
+                let current_count = ctx.shared.encoder_count.lock(|c| *c);
+
+                let mut registers = HoldingRegisters {
+                    value_low: (current_count & 0xFFFF) as u16,
+                    value_high: ((current_count >> 16) & 0xFFFF) as u16,
+                    node_address: modbus.address() as u16,
+                    new_node_address: modbus.address() as u16,
+                };
+
+                let tx_len = modbus.process(&rx_buf[..rx_len], tx_buf, &mut registers);
+
+                if tx_len != 0 {
+                    let _ = uart.send_data(&tx_buf[..tx_len]);
+                }
             }
         }
 
         uart_task::spawn_after(1.millis()).ok();
     }
-
     #[idle]
     fn idle(_: idle::Context) -> ! {
         loop {
@@ -215,6 +251,7 @@ mod app {
         tm1638_test::spawn_after(100.millis()).ok();
     }
 
+    // Encoder Hardware Task
     #[task(
         binds = EXTI0_1,
         priority = 3,
@@ -246,6 +283,7 @@ mod app {
         }
     }
 
+    // Power fail Hardware Task
     #[task(
         binds = EXTI4_15,
         priority = 4,
