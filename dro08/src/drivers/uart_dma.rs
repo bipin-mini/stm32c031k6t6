@@ -1,4 +1,5 @@
 use crate::bsp::SYSCLK_HZ;
+use crate::protocol::modbus::{HoldingRegisters, Modbus};
 use stm32c0::stm32c031 as pac;
 
 const BAUDRATE: u32 = 9_600;
@@ -271,5 +272,30 @@ impl UartDma {
             .write(|w| unsafe { w.bits(self.tx_len as u32) });
 
         dma.ch(1).cr().modify(|_, w| w.en().set_bit());
+    }
+
+    /// Process incoming Modbus frame directly inside DMA buffers.
+    /// Returns `true` if a response frame was sent.
+    pub fn process_modbus(&mut self, modbus: &mut Modbus, holding: &mut HoldingRegisters) -> bool {
+        if !self.rx_ready || self.tx_busy {
+            return false;
+        }
+
+        // Direct borrow of disjoint fields inside struct - zero copy, zero tuple bloat
+        let tx_len = modbus.process(&self.rx_buf[..self.rx_len], &mut self.tx_buf, holding);
+
+        self.rx_ready = false;
+        self.rx_len = 0;
+
+        if tx_len > 0 {
+            self.tx_len = tx_len;
+            self.stop_rx_dma();
+            self.tx_busy = true;
+            self.start_tx_dma();
+            true
+        } else {
+            self.start_rx_dma();
+            false
+        }
     }
 }

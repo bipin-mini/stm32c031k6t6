@@ -5,6 +5,7 @@ use panic_halt as _;
 use stm32c0::stm32c031 as pac;
 
 mod bsp;
+mod scale_ratio;
 mod drivers {
     pub mod blink;
     pub mod encoder;
@@ -24,16 +25,20 @@ mod protocol {
 use bsp::SYSCLK_HZ;
 use rtic::app;
 use systick_monotonic::*;
+use scale_ratio::ScaleRatio;
 
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
 
     use super::*;
-    use crate::drivers::relay::Relay::{RL1, RL2};
+    use crate::app::shared_resources::scale_factor_that_needs_to_be_locked;
+use crate::drivers::relay::Relay::{RL1, RL2};
     use crate::drivers::relay::RelayDriver;
     use crate::drivers::{encoder::Encoder, tm1638::Tm1638, uart_dma::UartDma};
     use crate::protocol::modbus::{DEFAULT_ADDRESS, HoldingRegisters, Modbus};
     use crate::storage::eeprom::Eeprom;
+    
+
 
     #[monotonic(binds = SysTick, default = true)]
     type SysMono = Systick<1000>;
@@ -41,10 +46,10 @@ mod app {
     #[shared]
     struct Shared {
         encoder_count: i32,
-        _scale_factor: u32,
+        scale_factor: ScaleRatio,
         _limit_1: i32,
         _limit_2: i32,
-        _slave_addr: u8,
+        slave_addr: u8,
     }
 
     #[local]
@@ -69,6 +74,7 @@ mod app {
         let modbus = Modbus::new(DEFAULT_ADDRESS);
         let relay = RelayDriver::new();
         let eeprom = Eeprom::new(dp.I2C1, &dp.RCC);
+        let scale_factor = ScaleRatio::new(1,0);
 
         let mono = Systick::new(ctx.core.SYST, SYSCLK_HZ);
 
@@ -83,10 +89,10 @@ mod app {
         (
             Shared {
                 encoder_count: 0,
-                _scale_factor: 1,
+                scale_factor,
                 _limit_1: 100,
                 _limit_2: 200,
-                _slave_addr: 127,
+                slave_addr: 127,
             },
             Local {
                 uart,
@@ -98,56 +104,6 @@ mod app {
             },
             init::Monotonics(mono),
         )
-    }
-
-    #[task(
-    priority = 2,
-    local = [
-        uart,
-        modbus,
-        rx_buf: [u8; 256] = [0; 256],
-        tx_buf: [u8; 256] = [0; 256],
-    ],
-    shared = [encoder_count]
-)]
-    fn uart_task(mut ctx: uart_task::Context) {
-        let uart = ctx.local.uart;
-        let modbus = ctx.local.modbus;
-        let rx_buf = ctx.local.rx_buf;
-        let tx_buf = ctx.local.tx_buf;
-
-        uart.poll();
-
-        if !uart.tx_busy() {
-            if let Some(rx_len) = uart.receive_data(rx_buf) {
-                let current_count = ctx.shared.encoder_count.lock(|c| *c);
-
-                let raw_bits = current_count as u32;
-                let mut registers = HoldingRegisters {
-                    value_low: (raw_bits & 0xFFFF) as u16,
-                    value_high: ((raw_bits >> 16) & 0xFFFF) as u16,
-                    node_address: modbus.address() as u16,
-                    new_node_address: modbus.address() as u16,
-                };
-
-                let tx_len = modbus.process(&rx_buf[..rx_len], tx_buf, &mut registers);
-
-                if tx_len != 0 {
-                    // Sync modified encoder value back if written by master
-                    let new_raw =
-                        ((registers.value_high as u32) << 16) | (registers.value_low as u32);
-                    let new_count = new_raw as i32;
-
-                    if new_count != current_count {
-                        ctx.shared.encoder_count.lock(|c| *c = new_count);
-                    }
-
-                    let _ = uart.send_data(&tx_buf[..tx_len]);
-                }
-            }
-        }
-
-        uart_task::spawn_after(1.millis()).ok();
     }
 
     #[idle]
@@ -256,5 +212,60 @@ mod app {
         ctx.shared.encoder_count.lock(|count| {
             *count = -123_456;
         });
+    }
+
+    #[task(
+    priority = 2,
+    local = [
+        uart,
+        modbus,
+    ],
+    shared = [encoder_count, slave_addr]
+)]
+    fn uart_task(mut ctx: uart_task::Context) {
+        let uart = ctx.local.uart;
+        let modbus = ctx.local.modbus;
+
+        uart.poll();
+
+        if !uart.tx_busy() {
+            // Read current RTIC shared state
+            let current_count = ctx.shared.encoder_count.lock(|c| *c);
+            let current_addr = ctx.shared.slave_addr.lock(|a| *a);
+
+            // Keep Modbus driver in sync with shared slave_addr
+            modbus.set_address(current_addr);
+
+            let raw_bits = current_count as u32;
+
+            let mut registers = HoldingRegisters {
+                value_low: (raw_bits & 0xFFFF) as u16,
+                value_high: ((raw_bits >> 16) & 0xFFFF) as u16,
+                node_address: current_addr as u16,
+                new_node_address: current_addr as u16,
+            };
+
+            // Process Modbus frame zero-copy
+            let responded = uart.process_modbus(modbus, &mut registers);
+
+            if responded {
+                // 1. Sync modified encoder count back if written by master
+                let new_raw = ((registers.value_high as u32) << 16) | (registers.value_low as u32);
+                let new_count = new_raw as i32;
+
+                if new_count != current_count {
+                    ctx.shared.encoder_count.lock(|c| *c = new_count);
+                }
+
+                // 2. Sync modified slave address back to RTIC shared state if written by master
+                let new_addr = registers.node_address as u8;
+                if new_addr != current_addr {
+                    ctx.shared.slave_addr.lock(|a| *a = new_addr);
+                    modbus.set_address(new_addr);
+                }
+            }
+        }
+
+        uart_task::spawn_after(1.millis()).ok();
     }
 }
