@@ -32,7 +32,7 @@ mod app {
     use crate::drivers::relay::Relay::{RL1, RL2};
     use crate::drivers::relay::RelayDriver;
     use crate::drivers::{encoder::Encoder, tm1638::Tm1638, uart_dma::UartDma};
-    use crate::protocol::modbus::{Modbus,HoldingRegisters,DEFAULT_ADDRESS};
+    use crate::protocol::modbus::{DEFAULT_ADDRESS, HoldingRegisters, Modbus};
     use crate::storage::eeprom::Eeprom;
 
     #[monotonic(binds = SysTick, default = true)]
@@ -61,40 +61,21 @@ mod app {
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let dp = ctx.device;
 
-        // Configure system clock.
         bsp::init_clocks(&dp.RCC);
-
-        // Configure pins (EXTI IMR remains masked).
         bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
 
-        // Create TM1638 driver
         let tm1638 = Tm1638::new();
-
-        // Create UART driver.
         let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
-
-        // Create Modbus
         let modbus = Modbus::new(DEFAULT_ADDRESS);
-
-        //Create Relay driver
         let relay = RelayDriver::new();
-
-        // Create EEPROM driver
         let eeprom = Eeprom::new(dp.I2C1, &dp.RCC);
 
-        // Start monotonic timer.
         let mono = Systick::new(ctx.core.SYST, SYSCLK_HZ);
 
-        // --- STABILIZATION WINDOW ---
-        // Allow pull-up resistors and pin capacitance to fully charge to 3.3V (~2ms @ 48MHz)
-        cortex_m::asm::delay(9600_000);
+        cortex_m::asm::delay(9_600_000);
 
-        // Create Encoder
         let encoder = Encoder::new(&dp.GPIOA);
-
-        // Enable Interrupts (flushes stale flags and unmasks EXTI IMR)
         bsp::init_interrupts(&dp.EXTI);
-        // ----------------------------
 
         tm1638_test::spawn().ok();
         uart_task::spawn().ok();
@@ -139,12 +120,12 @@ mod app {
 
         if !uart.tx_busy() {
             if let Some(rx_len) = uart.receive_data(rx_buf) {
-                // Read shared encoder count to update registers dynamically
                 let current_count = ctx.shared.encoder_count.lock(|c| *c);
 
+                let raw_bits = current_count as u32;
                 let mut registers = HoldingRegisters {
-                    value_low: (current_count & 0xFFFF) as u16,
-                    value_high: ((current_count >> 16) & 0xFFFF) as u16,
+                    value_low: (raw_bits & 0xFFFF) as u16,
+                    value_high: ((raw_bits >> 16) & 0xFFFF) as u16,
                     node_address: modbus.address() as u16,
                     new_node_address: modbus.address() as u16,
                 };
@@ -152,6 +133,15 @@ mod app {
                 let tx_len = modbus.process(&rx_buf[..rx_len], tx_buf, &mut registers);
 
                 if tx_len != 0 {
+                    // Sync modified encoder value back if written by master
+                    let new_raw =
+                        ((registers.value_high as u32) << 16) | (registers.value_low as u32);
+                    let new_count = new_raw as i32;
+
+                    if new_count != current_count {
+                        ctx.shared.encoder_count.lock(|c| *c = new_count);
+                    }
+
                     let _ = uart.send_data(&tx_buf[..tx_len]);
                 }
             }
@@ -159,10 +149,11 @@ mod app {
 
         uart_task::spawn_after(1.millis()).ok();
     }
+
     #[idle]
     fn idle(_: idle::Context) -> ! {
         loop {
-            //cortex_m::asm::wfi();
+            cortex_m::asm::wfi();
         }
     }
 
@@ -179,12 +170,11 @@ mod app {
     fn tm1638_test(mut ctx: tm1638_test::Context) {
         use crate::drivers::tm1638::{FONT, KEY1, KEY2, KEY3, KEY4, KEY6};
 
-        const KNOWN_TEST_VALUE: i32 = 424242;
+        const KNOWN_TEST_VALUE: i32 = 424_242;
 
         let tm = ctx.local.tm1638;
         let relays = ctx.local.relay;
 
-        // Read keyboard
         tm.read_keys(ctx.local.keys);
 
         let current_keys = (ctx.local.keys[3] as u32) << 24
@@ -192,50 +182,32 @@ mod app {
             | (ctx.local.keys[1] as u32) << 8
             | (ctx.local.keys[0] as u32);
 
-        // Detect rising edge
         let pressed_keys = current_keys & !*ctx.local.last_keys;
         *ctx.local.last_keys = current_keys;
 
         match pressed_keys {
             KEY1 => {
                 let mut buf = [0u8; 4];
-                // Sequential 4-byte read (1 transaction)
                 ctx.local.eeprom.read(0, &mut buf);
-
                 let loaded_count = i32::from_le_bytes(buf);
-
-                ctx.shared.encoder_count.lock(|c| {
-                    *c = loaded_count;
-                });
+                ctx.shared.encoder_count.lock(|c| *c = loaded_count);
             }
             KEY2 => {
                 let buf = KNOWN_TEST_VALUE.to_le_bytes();
-                // Page write (1 transaction, 1 internal write cycle delay)
                 ctx.local.eeprom.write(0, &buf);
-
-                ctx.shared.encoder_count.lock(|c| {
-                    *c = KNOWN_TEST_VALUE;
-                });
+                ctx.shared.encoder_count.lock(|c| *c = KNOWN_TEST_VALUE);
             }
-            KEY3 => {
-                relays.toggle(RL1);
-            }
-            KEY4 => {
-                relays.toggle(RL2);
-            }
-            KEY6 => {
-                ctx.shared.encoder_count.lock(|c| *c = 0);
-            }
+            KEY3 => relays.toggle(RL1),
+            KEY4 => relays.toggle(RL2),
+            KEY6 => ctx.shared.encoder_count.lock(|c| *c = 0),
             _ => {}
         }
 
-        // Display formatting
         let count = ctx.shared.encoder_count.lock(|c| *c);
         let negative = count < 0;
         let mut value = count.unsigned_abs();
 
         let mut data = [0u8; 16];
-
         for i in 0..6 {
             let digit = (value % 10) as usize;
             value /= 10;
@@ -251,7 +223,6 @@ mod app {
         tm1638_test::spawn_after(100.millis()).ok();
     }
 
-    // Encoder Hardware Task
     #[task(
         binds = EXTI0_1,
         priority = 3,
@@ -262,20 +233,10 @@ mod app {
         let exti = unsafe { &*pac::EXTI::ptr() };
         let gpioa = unsafe { &*pac::GPIOA::ptr() };
 
-        // Clear pending EXTI flags.
-        exti.rpr1().write(|w| {
-            w.rpif0().set_bit();
-            w.rpif1().set_bit()
-        });
+        exti.rpr1().write(|w| w.rpif0().set_bit().rpif1().set_bit());
+        exti.fpr1().write(|w| w.fpif0().set_bit().fpif1().set_bit());
 
-        exti.fpr1().write(|w| {
-            w.fpif0().set_bit();
-            w.fpif1().set_bit()
-        });
-
-        // Decode transition.
         let delta = ctx.local.encoder.update(gpioa);
-
         if delta != 0 {
             ctx.shared.encoder_count.lock(|count| {
                 *count += i32::from(delta);
@@ -283,7 +244,6 @@ mod app {
         }
     }
 
-    // Power fail Hardware Task
     #[task(
         binds = EXTI4_15,
         priority = 4,
@@ -291,7 +251,6 @@ mod app {
     )]
     fn exti4_15(mut ctx: exti4_15::Context) {
         let exti = unsafe { &*pac::EXTI::ptr() };
-
         exti.fpr1().write(|w| w.fpif6().set_bit());
 
         ctx.shared.encoder_count.lock(|count| {
