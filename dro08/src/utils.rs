@@ -1,9 +1,11 @@
+use crate::drivers::tm1638::FONT;
+
 const POW10: [i64; 6] = [1, 10, 100, 1_000, 10_000, 100_000];
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 pub struct ScaleRatio {
-    pub val: u32, // 1 to 999_999 (6 digits)
-    pub dp: u8,   // 0 to 5 decimal places
+    pub val: u32,
+    pub dp: u8,
 }
 
 impl ScaleRatio {
@@ -20,14 +22,26 @@ impl ScaleRatio {
         }
     }
 
-    /// Apply ratio using 64-bit integer arithmetic (zero floating-point math)
     #[inline(always)]
     pub fn apply(&self, raw_count: i32) -> i32 {
         let raw = raw_count as i64;
         let num = self.val as i64;
         let den = POW10[self.dp as usize];
+        ((raw * num) / den) as i32
+    }
+}
 
-        let scaled = (raw * num) / den;
-        scaled as i32
+pub fn display_i32(n: i32, ram_data: &mut [u8; 16]) {
+    let negative = n < 0;
+    let mut value = n.unsigned_abs();
+
+    for i in 0..6 {
+        let digit = (value % 10) as usize;
+        value /= 10;
+        ram_data[(7 - i) * 2] = FONT[digit];
+    }
+
+    if negative {
+        ram_data[2] = 0x40;
     }
 }
