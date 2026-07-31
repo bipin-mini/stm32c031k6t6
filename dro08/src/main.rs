@@ -103,32 +103,40 @@ mod app {
     }
 
     #[task(
-        local = [tm1638],
-        shared = [tm1638_ram, tm1638_keys]
-    )]
+    local = [
+        tm1638,
+        active_key: u32 = 0, // Remembers active key to prevent repeats
+    ],
+    shared = [tm1638_ram, tm1638_keys]
+)]
     fn tm1638_task(mut ctx: tm1638_task::Context) {
         let tm = ctx.local.tm1638;
 
-        // 1. Read keys from TM1638 hardware
         let mut key_buf = [0u8; 4];
         tm.read_keys(&mut key_buf);
 
-        // Convert 4 bytes into 32-bit key mask
-        let current_keys = (key_buf[3] as u32) << 24
+        let raw_keys = (key_buf[3] as u32) << 24
             | (key_buf[2] as u32) << 16
             | (key_buf[1] as u32) << 8
             | (key_buf[0] as u32);
 
-        // Update shared key state for FSM task to process
-        let keys_option = (current_keys != 0).then_some(current_keys);
-        ctx.shared.tm1638_keys.lock(|k| *k = keys_option);
-        // 2. Write display RAM buffer to physical TM1638 if available
+        let active_key = ctx.local.active_key;
+
+        // Send event ONLY on initial press down transition
+        if raw_keys != 0 && *active_key == 0 {
+            ctx.shared.tm1638_keys.lock(|k| *k = Some(raw_keys));
+            *active_key = raw_keys;
+        } else if raw_keys == 0 {
+            // Reset when user releases the button
+            *active_key = 0;
+        }
+
+        // Write display RAM to physical chip
         let ram_data = ctx.shared.tm1638_ram.lock(|ram| *ram);
         if let Some(data) = ram_data {
             tm.write_display(&data);
         }
 
-        // Reschedule task to run every 100 ms
         tm1638_task::spawn_after(100.millis()).ok();
     }
 
@@ -215,33 +223,39 @@ mod app {
     }
 
     #[task(
-        priority = 1,
-        local = [
-            last_keys: u32 = 0,
-            menu_select: u8 = 0,
-        ],
-        shared = [
-            encoder_count,
-            scale_factor,
-            limit_1,
-            limit_2,
-            tm1638_keys,
-            tm1638_ram,
-        ]
-    )]
+    priority = 1,
+    local = [
+        menu_select: u8 = 0,
+    ],
+    shared = [
+        encoder_count,
+        scale_factor,
+        limit_1,
+        limit_2,
+        tm1638_keys,
+        tm1638_ram,
+    ]
+)]
     fn fsm_task(mut ctx: fsm_task::Context) {
-        use crate::drivers::tm1638::{KEY1, KEY3, KEY4};
+        use crate::drivers::tm1638::{KEY1, KEY6};
         use rtic::Mutex;
 
-        // 1. Read and clear (take) the shared key Option in a single atomic lock
-        let raw_keys = ctx.shared.tm1638_keys.lock(|k| k.take()).unwrap_or(0);
+        // 1. Consume single event sent by tm1638_task
+        let pressed = ctx.shared.tm1638_keys.lock(|k| k.take()).unwrap_or(0);
 
-        // 2. Rising-edge detection for single button presses
-        let last_keys = ctx.local.last_keys;
-        let pressed = raw_keys & !*last_keys;
-        *last_keys = raw_keys;
+        // 2. Process menu navigation
+        let menu_select = ctx.local.menu_select;
+        match pressed {
+            KEY1 => {
+                *menu_select = (*menu_select + 1) % 6;
+            }
+            KEY6 => {
+                ctx.shared.encoder_count.lock(|c| *c = 0);
+            }
+            _ => {}
+        }
 
-        // 3. Read shared DRO parameters safely
+        // 3. Read DRO parameters
         let (count, scale, l1, l2) = (
             &mut ctx.shared.encoder_count,
             &mut ctx.shared.scale_factor,
@@ -250,41 +264,29 @@ mod app {
         )
             .lock(|c, s, l1, l2| (*c, *s, *l1, *l2));
 
-        // 4. Handle Button Actions
-        if pressed == KEY1 {
-            // KEY1: Reset live encoder count to zero
-            ctx.shared.encoder_count.lock(|c| *c = 0);
-        }
-
-        if pressed == KEY4 {
-            // KEY4: Cycle parameter views (0 = Limit 1, 1 = Limit 2, 2 = Scale Factor)
-            *ctx.local.menu_select = (*ctx.local.menu_select + 1) % 3;
-        }
-
-        // 5. Select value to render based on key active state
-        let preset_val: i32 = 5000; // Sample preset value
-        let display_val: i32 = if (raw_keys & KEY3) != 0 {
-            // KEY3 held: Display Preset Value
-            preset_val
-        } else if (raw_keys & KEY4) != 0 {
-            // KEY4 held/pressed: Display selected parameter
-            match *ctx.local.menu_select {
-                0 => l1,
-                1 => l2,
-                _ => scale.val as i32,
-            }
-        } else {
-            // Default: Display live scaled position
-            scale.apply(count)
+        // 4. Compute display output
+        let (value, dp) = match *menu_select {
+            1 => (-5000, 2),
+            2 => (l1, 0),
+            3 => (l2, 0),
+            4 => (0, 0),
+            5 => (scale.val as i32, scale.dp),
+            _ => (scale.apply(count), 0),
         };
 
-        // 6. Format and publish to shared display RAM
         let mut ram_buf = [0u8; 16];
-        display_i32(display_val, &mut ram_buf);
+        display_i32(value, &mut ram_buf, dp);
 
+        let led_idx = (2 * (*menu_select + 2)) + 1;
+
+        // Only turn on the LED for menus 1..=5 (skips menu 0 where led_idx == 5)
+        if led_idx > 5 {
+            ram_buf[led_idx as usize] = 1;
+        }
+
+        // 5. Commit RAM buffer update
         ctx.shared.tm1638_ram.lock(|ram| *ram = Some(ram_buf));
 
-        // Reschedule task every 100 ms
         fsm_task::spawn_after(100.millis()).ok();
     }
 }

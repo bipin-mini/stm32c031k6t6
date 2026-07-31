@@ -31,7 +31,7 @@ impl ScaleRatio {
     }
 }
 
-pub fn display_i32(n: i32, ram_data: &mut [u8; 16]) {
+pub fn display_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8) {
     let negative = n < 0;
     let mut value = n.unsigned_abs();
 
@@ -39,6 +39,10 @@ pub fn display_i32(n: i32, ram_data: &mut [u8; 16]) {
         let digit = (value % 10) as usize;
         value /= 10;
         ram_data[(7 - i) * 2] = FONT[digit];
+    }
+
+    if decimal_pos > 0 && decimal_pos < 6 {
+        ram_data[(7 - decimal_pos as usize) * 2] |= 0x80;
     }
 
     if negative {
