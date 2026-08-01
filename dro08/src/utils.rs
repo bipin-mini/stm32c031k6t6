@@ -22,12 +22,32 @@ impl ScaleRatio {
         }
     }
 
+    /// Apply ratio using 64-bit integer arithmetic
     #[inline(always)]
     pub fn apply(&self, raw_count: i32) -> i32 {
         let raw = raw_count as i64;
         let num = self.val as i64;
         let den = POW10[self.dp as usize];
-        ((raw * num) / den) as i32
+
+        let scaled = (raw * num) / den;
+        scaled as i32
+    }
+
+    /// Convert scaled value back to raw encoder count
+    #[inline(always)]
+    pub fn unapply(&self, scaled_val: i32) -> i32 {
+        let scaled = scaled_val as i64;
+        let num = POW10[self.dp as usize];
+        let den = self.val as i64;
+
+        let half_den = den / 2;
+        let raw = if scaled >= 0 {
+            (scaled * num + half_den) / den
+        } else {
+            (scaled * num - half_den) / den
+        };
+
+        raw as i32
     }
 }
 

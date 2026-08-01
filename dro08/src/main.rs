@@ -26,6 +26,7 @@ use utils::{ScaleRatio, display_i32};
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
     use super::*;
+    use crate::drivers::keyboard::KEY2;
     use crate::drivers::{encoder::Encoder, tm1638::Tm1638, uart_dma::UartDma};
     use crate::protocol::modbus::{DEFAULT_ADDRESS, HoldingRegisters, Modbus};
 
@@ -35,9 +36,12 @@ mod app {
     #[shared]
     struct Shared {
         encoder_count: i32,
+        preset_count: i32,
         scale_factor: ScaleRatio,
+        scaled_value: i32,
         limit_1: i32,
         limit_2: i32,
+        relay_time: u8,
         slave_addr: u8,
 
         tm1638_ram: Option<[u8; 16]>,
@@ -62,7 +66,13 @@ mod app {
         let tm1638 = Tm1638::new();
         let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
         let modbus = Modbus::new(DEFAULT_ADDRESS);
-        let scale_factor = ScaleRatio::new(5, 1);
+        let encoder_count = 0;
+        let preset_count = -5000;
+        let limit_1 = 100;
+        let limit_2 = 200;
+        let relay_time = 10;
+        let scale_factor = ScaleRatio::new(25, 2);
+        let scaled_value = scale_factor.apply(encoder_count);
 
         let mono = Systick::new(ctx.core.SYST, SYSCLK_HZ);
 
@@ -77,10 +87,13 @@ mod app {
 
         (
             Shared {
-                encoder_count: 0,
+                encoder_count,
+                preset_count,
                 scale_factor,
-                limit_1: 100,
-                limit_2: 200,
+                scaled_value,
+                limit_1,
+                limit_2,
+                relay_time,
                 slave_addr: 127,
                 tm1638_ram: None,
                 tm1638_keys: None,
@@ -100,44 +113,6 @@ mod app {
         loop {
             cortex_m::asm::wfi();
         }
-    }
-
-    #[task(
-    local = [
-        tm1638,
-        active_key: u32 = 0, // Remembers active key to prevent repeats
-    ],
-    shared = [tm1638_ram, tm1638_keys]
-)]
-    fn tm1638_task(mut ctx: tm1638_task::Context) {
-        let tm = ctx.local.tm1638;
-
-        let mut key_buf = [0u8; 4];
-        tm.read_keys(&mut key_buf);
-
-        let raw_keys = (key_buf[3] as u32) << 24
-            | (key_buf[2] as u32) << 16
-            | (key_buf[1] as u32) << 8
-            | (key_buf[0] as u32);
-
-        let active_key = ctx.local.active_key;
-
-        // Send event ONLY on initial press down transition
-        if raw_keys != 0 && *active_key == 0 {
-            ctx.shared.tm1638_keys.lock(|k| *k = Some(raw_keys));
-            *active_key = raw_keys;
-        } else if raw_keys == 0 {
-            // Reset when user releases the button
-            *active_key = 0;
-        }
-
-        // Write display RAM to physical chip
-        let ram_data = ctx.shared.tm1638_ram.lock(|ram| *ram);
-        if let Some(data) = ram_data {
-            tm.write_display(&data);
-        }
-
-        tm1638_task::spawn_after(100.millis()).ok();
     }
 
     #[task(
@@ -175,24 +150,36 @@ mod app {
         });
     }
 
+    // Updates scaled value and publishes it to Modbus registers.
+    // Also handles Modbus register writes to update encoder count and slave address.
     #[task(
         priority = 2,
         local = [uart, modbus],
-        shared = [encoder_count, slave_addr]
+        shared = [encoder_count, slave_addr, scaled_value, scale_factor]
     )]
     fn uart_task(mut ctx: uart_task::Context) {
         let uart = ctx.local.uart;
         let modbus = ctx.local.modbus;
 
+        // Snapshot state atomically
+        let (current_count, current_addr, scale) = (
+            &mut ctx.shared.encoder_count,
+            &mut ctx.shared.slave_addr,
+            &mut ctx.shared.scale_factor,
+        )
+            .lock(|c, a, s| (*c, *a, *s));
+
+        // Update scaled value for system-wide access
+        let current_scaled = scale.apply(current_count);
+        ctx.shared.scaled_value.lock(|sv| *sv = current_scaled);
+
         uart.poll();
 
         if !uart.tx_busy() {
-            let current_count = ctx.shared.encoder_count.lock(|c| *c);
-            let current_addr = ctx.shared.slave_addr.lock(|a| *a);
-
             modbus.set_address(current_addr);
 
-            let raw_bits = current_count as u32;
+            // Modbus registers carry the SCALED value
+            let raw_bits = current_scaled as u32;
 
             let mut registers = HoldingRegisters {
                 value_low: (raw_bits & 0xFFFF) as u16,
@@ -201,18 +188,21 @@ mod app {
                 new_node_address: current_addr as u16,
             };
 
-            let responded = uart.process_modbus(modbus, &mut registers);
+            if uart.process_modbus(modbus, &mut registers) {
+                let incoming_scaled =
+                    (((registers.value_high as u32) << 16) | (registers.value_low as u32)) as i32;
 
-            if responded {
-                let new_raw = ((registers.value_high as u32) << 16) | (registers.value_low as u32);
-                let new_count = new_raw as i32;
-
-                if new_count != current_count {
-                    ctx.shared.encoder_count.lock(|c| *c = new_count);
+                // Check against current_scaled to prevent feedback scaling loop
+                if incoming_scaled != current_scaled {
+                    let raw_count = scale.unapply(incoming_scaled);
+                    (&mut ctx.shared.encoder_count, &mut ctx.shared.scaled_value).lock(|c, sv| {
+                        *c = raw_count;
+                        *sv = incoming_scaled;
+                    });
                 }
 
-                let new_addr = registers.node_address as u8;
-                if new_addr != current_addr {
+                let new_addr = registers.new_node_address as u8;
+                if new_addr != current_addr && new_addr > 0 && new_addr < 248 {
                     ctx.shared.slave_addr.lock(|a| *a = new_addr);
                     modbus.set_address(new_addr);
                 }
@@ -223,68 +213,122 @@ mod app {
     }
 
     #[task(
-    priority = 1,
-    local = [
-        menu_select: u8 = 0,
-    ],
-    shared = [
-        encoder_count,
-        scale_factor,
-        limit_1,
-        limit_2,
-        tm1638_keys,
-        tm1638_ram,
-    ]
-)]
+        local = [
+            tm1638,
+            active_key: u32 = 0, // Task-local key state
+        ],
+        shared = [tm1638_ram, tm1638_keys]
+    )]
+    fn tm1638_task(mut ctx: tm1638_task::Context) {
+        let tm = ctx.local.tm1638;
+
+        let mut key_buf = [0u8; 4];
+        tm.read_keys(&mut key_buf);
+
+        let raw_keys = (key_buf[3] as u32) << 24
+            | (key_buf[2] as u32) << 16
+            | (key_buf[1] as u32) << 8
+            | (key_buf[0] as u32);
+
+        let active_key = ctx.local.active_key;
+
+        // Send event ONLY on initial press down transition
+        if raw_keys != 0 && *active_key == 0 {
+            ctx.shared.tm1638_keys.lock(|k| *k = Some(raw_keys));
+            *active_key = raw_keys;
+        } else if raw_keys == 0 {
+            // Reset when user releases the button
+            *active_key = 0;
+        }
+
+        // Write display RAM to physical chip
+        let ram_data = ctx.shared.tm1638_ram.lock(|ram| *ram);
+        if let Some(data) = ram_data {
+            tm.write_display(&data);
+        }
+
+        tm1638_task::spawn_after(100.millis()).ok();
+    }
+
+    #[task(
+        priority = 1,
+        local = [menu_select: u8 = 0],
+        shared = [
+            encoder_count, scale_factor, scaled_value,
+            preset_count, relay_time, limit_1, limit_2,
+            tm1638_keys, tm1638_ram,
+        ]
+    )]
     fn fsm_task(mut ctx: fsm_task::Context) {
-        use crate::drivers::tm1638::{KEY1, KEY6};
-        use rtic::Mutex;
+        use crate::drivers::tm1638::{KEY1, KEY4, KEY6};
 
-        // 1. Consume single event sent by tm1638_task
+        // 1. Process key press events
         let pressed = ctx.shared.tm1638_keys.lock(|k| k.take()).unwrap_or(0);
-
-        // 2. Process menu navigation
         let menu_select = ctx.local.menu_select;
+
+        // 2. Read state atomically
+        let (preset, scale, scale_val, l1, l2, t) = (
+            &mut ctx.shared.preset_count,
+            &mut ctx.shared.scale_factor,
+            &mut ctx.shared.scaled_value,
+            &mut ctx.shared.limit_1,
+            &mut ctx.shared.limit_2,
+            &mut ctx.shared.relay_time,
+        )
+            .lock(|p, f, s, l1, l2, t| (*p, *f, *s, *l1, *l2, *t));
+
         match pressed {
-            KEY1 => {
-                *menu_select = (*menu_select + 1) % 6;
+            KEY1 => *menu_select = (*menu_select + 1) % 6,
+            KEY2 => *menu_select = 0, // Decrement with wrap-around
+            KEY4 => {
+                // Preset is already scaled -> descale to find raw encoder value
+                let raw_target = scale.unapply(preset);
+                (&mut ctx.shared.encoder_count, &mut ctx.shared.scaled_value).lock(|c, sv| {
+                    *c = raw_target;
+                    *sv = preset;
+                });
             }
             KEY6 => {
-                ctx.shared.encoder_count.lock(|c| *c = 0);
+                if *menu_select == 0 {
+                    (&mut ctx.shared.encoder_count, &mut ctx.shared.scaled_value).lock(|c, sv| {
+                        *c = 0;
+                        *sv = 0;
+                    });
+                }
             }
             _ => {}
         }
 
-        // 3. Read DRO parameters
-        let (count, scale, l1, l2) = (
-            &mut ctx.shared.encoder_count,
-            &mut ctx.shared.scale_factor,
-            &mut ctx.shared.limit_1,
-            &mut ctx.shared.limit_2,
-        )
-            .lock(|c, s, l1, l2| (*c, *s, *l1, *l2));
-
-        // 4. Compute display output
+        // 3. Match menu page
         let (value, dp) = match *menu_select {
-            1 => (-5000, 2),
+            1 => (preset, 0),
             2 => (l1, 0),
             3 => (l2, 0),
-            4 => (0, 0),
+            4 => (t as i32, 0),
             5 => (scale.val as i32, scale.dp),
-            _ => (scale.apply(count), 0),
+            _ => (
+                if pressed == KEY4 {
+                    preset
+                } else if pressed == KEY6 {
+                    0
+                } else {
+                    scale_val
+                },
+                0,
+            ),
         };
 
         let mut ram_buf = [0u8; 16];
         display_i32(value, &mut ram_buf, dp);
 
-        let led_idx = (2 * (*menu_select + 2)) + 1;
-
-        // Only turn on the LED for menus 1..=5 (skips menu 0 where led_idx == 5)
-        if led_idx > 5 {
-            ram_buf[led_idx as usize] = 1;
+        // Turn on status LED for menu items 1..=5 safely without overwriting digits
+        if *menu_select > 0 && *menu_select <= 5 {
+            let led_idx = (2 * (*menu_select + 2) + 1) as usize;
+            if led_idx < ram_buf.len() {
+                ram_buf[led_idx] |= 1;
+            }
         }
 
-        // 5. Commit RAM buffer update
         ctx.shared.tm1638_ram.lock(|ram| *ram = Some(ram_buf));
 
         fsm_task::spawn_after(100.millis()).ok();
