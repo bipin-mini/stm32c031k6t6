@@ -169,22 +169,17 @@ mod app {
         });
     }
 
-    #[task(
+#[task(
         priority = 2,
         local = [uart, modbus],
-        shared = [encoder_count, slave_addr, scaled_value, scale_factor]
+        shared = [slave_addr, scaled_value] 
     )]
     fn uart_task(mut ctx: uart_task::Context) {
         let uart = ctx.local.uart;
         let modbus = ctx.local.modbus;
 
-        // Fetch inputs separately with minimal lock durations
-        let current_count = ctx.shared.encoder_count.lock(|c| *c);
+        let current_scaled = ctx.shared.scaled_value.lock(|sv| *sv);
         let current_addr = ctx.shared.slave_addr.lock(|a| *a);
-        let scale = ctx.shared.scale_factor.lock(|s| *s);
-
-        let current_scaled = scale.apply(current_count);
-        ctx.shared.scaled_value.lock(|sv| *sv = current_scaled);
 
         uart.poll();
 
@@ -201,17 +196,8 @@ mod app {
             };
 
             if uart.process_modbus(modbus, &mut registers) {
-                let incoming_scaled =
-                    (((registers.value_high as u32) << 16) | (registers.value_low as u32)) as i32;
-
-                if incoming_scaled != current_scaled {
-                    let raw_count = scale.unapply(incoming_scaled);
-
-                    // Update individually to keep interrupt disable windows minimal
-                    ctx.shared.encoder_count.lock(|c| *c = raw_count);
-                    ctx.shared.scaled_value.lock(|sv| *sv = incoming_scaled);
-                }
-
+                // scaled_value is strictly READ-ONLY over Modbus.
+                // We only check and update slave node address changes:
                 let new_addr = registers.new_node_address as u8;
                 if new_addr != current_addr && new_addr > 0 && new_addr < 248 {
                     ctx.shared.slave_addr.lock(|a| *a = new_addr);
@@ -226,22 +212,30 @@ mod app {
     #[task(
         priority = 3,
         local = [relay],
-        shared = [encoder_count, scale_factor, limit_1, limit_2, relay_time, reset_requested, rl1_active, rl2_active]
+        shared = [
+            encoder_count, scale_factor, scaled_value, 
+            limit_1, limit_2, relay_time, 
+            reset_requested, rl1_active, rl2_active
+        ]
     )]
     fn relay_task(mut ctx: relay_task::Context) {
         let relay = ctx.local.relay;
 
-        // Directly compute scaled value locally to avoid bus latency
-        let (raw_count, scale, l1, l2, t) = (
-            &mut ctx.shared.encoder_count,
-            &mut ctx.shared.scale_factor,
+        // 1. Fetch raw count and scale factor
+        let raw_count = ctx.shared.encoder_count.lock(|c| *c);
+        let scale = ctx.shared.scale_factor.lock(|f| *f);
+
+        // 2. Compute scaled value and publish to Shared memory
+        let scale_val = scale.apply(raw_count);
+        ctx.shared.scaled_value.lock(|sv| *sv = scale_val);
+
+        // 3. Fetch limits and relay timing
+        let (l1, l2, t) = (
             &mut ctx.shared.limit_1,
             &mut ctx.shared.limit_2,
             &mut ctx.shared.relay_time,
         )
-            .lock(|c, f, l1, l2, t| (*c, *f, *l1, *l2, *t));
-
-        let scale_val = scale.apply(raw_count);
+            .lock(|l1, l2, t| (*l1, *l2, *t));
 
         let reset_pressed = ctx.shared.reset_requested.lock(|r| {
             let val = *r;
@@ -249,6 +243,7 @@ mod app {
             val
         });
 
+        // 4. Update physical relay controller
         relay.update(scale_val, l1, l2, t, reset_pressed);
 
         let gpiob = unsafe { &*pac::GPIOB::ptr() };
@@ -256,10 +251,8 @@ mod app {
 
         let rl1_state = relay.is_rl1_active();
         let rl2_state = relay.is_rl2_active();
-        (&mut ctx.shared.rl1_active, &mut ctx.shared.rl2_active).lock(|r1, r2| {
-            *r1 = rl1_state;
-            *r2 = rl2_state;
-        });
+        ctx.shared.rl1_active.lock(|r1| *r1 = rl1_state);
+        ctx.shared.rl2_active.lock(|r2| *r2 = rl2_state);
 
         relay_task::spawn_after(1.millis()).ok();
     }
@@ -302,14 +295,14 @@ mod app {
             tm.write_display(&data);
         }
 
-        tm1638_task::spawn_after(100.millis()).ok();
+        tm1638_task::spawn_after(10.millis()).ok();
     }
 
-    #[task(
+#[task(
         priority = 1,
         local = [
             menu_select: u8 = 0,
-            decimal_dp, // <--- Corrected local resource reference
+            decimal_dp,
         ],
         shared = [
             encoder_count, scale_factor, scaled_value,
@@ -323,7 +316,7 @@ mod app {
 
         let pressed = ctx.shared.tm1638_keys.lock(|k| k.take()).unwrap_or(0);
         let menu_select = ctx.local.menu_select;
-        let decimal_dp = ctx.local.decimal_dp; // Direct local u8 reference
+        let decimal_dp = ctx.local.decimal_dp;
 
         let (preset, scale, scale_val, l1, l2, t) = (
             &mut ctx.shared.preset_count,
@@ -339,22 +332,17 @@ mod app {
             KEY1 => *menu_select = (*menu_select + 1) % 6,
             KEY2 => *menu_select = 0,
             KEY4 => {
-                // Calculate raw target BEFORE locking encoder_count
                 let raw_target = scale.unapply(preset);
-
-                // Lock only encoder_count briefly
                 ctx.shared.encoder_count.lock(|c| *c = raw_target);
                 ctx.shared.scaled_value.lock(|sv| *sv = preset);
             }
             KEY5 => {
-                // Rotate local decimal_dp on Page 0 (0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 0)
                 if *menu_select == 0 {
                     *decimal_dp = (*decimal_dp + 1) % 6;
                 }
             }
             KEY6 => {
                 if *menu_select == 0 {
-                    // Lock resources individually and release immediately
                     ctx.shared.encoder_count.lock(|c| *c = 0);
                     ctx.shared.scaled_value.lock(|sv| *sv = 0);
                 }
@@ -362,14 +350,13 @@ mod app {
             _ => {}
         }
 
-        // --- Select value and decimal point position for active page ---
+        // Select value and decimal point position
         let (value, dp) = match *menu_select {
             1 => (preset, 0),
             2 => (l1, 0),
             3 => (l2, 0),
             4 => (t as i32, 0),
             5 => (scale.val as i32, scale.dp),
-            // Page 0: Uses local decimal_dp initialized in init
             _ => (
                 if pressed == KEY4 {
                     preset
@@ -404,6 +391,7 @@ mod app {
 
         ctx.shared.tm1638_ram.lock(|ram| *ram = Some(ram_buf));
 
+        // Fixed 300ms loop period
         fsm_task::spawn_after(300.millis()).ok();
     }
 }
