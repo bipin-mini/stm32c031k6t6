@@ -1,3 +1,8 @@
+#![no_std]
+
+pub mod drivers;
+pub mod protocol;
+
 use crate::drivers::tm1638::FONT;
 
 const POW10: [i64; 6] = [1, 10, 100, 1_000, 10_000, 100_000];

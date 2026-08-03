@@ -1,4 +1,4 @@
-use crate::bsp::SYSCLK_HZ;
+use crate::drivers::bsp::SYSCLK_HZ;
 use crate::protocol::modbus::{HoldingRegisters, Modbus};
 use stm32c0::stm32c031 as pac;
 

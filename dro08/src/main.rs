@@ -4,32 +4,17 @@
 use panic_halt as _;
 use stm32c0::stm32c031 as pac;
 
-mod bsp;
-mod utils;
-mod drivers {
-    pub mod blink;
-    pub mod encoder;
-    pub mod keyboard;
-    pub mod relay;
-    pub mod tm1638;
-    pub mod uart_dma;
-}
-
-mod protocol {
-    pub mod modbus;
-}
-
-use bsp::SYSCLK_HZ;
-use drivers::relay::RelayController;
+use dro08::drivers::bsp::SYSCLK_HZ;
+use dro08::drivers::relay::RelayController;
+use dro08::{ScaleRatio, display_i32};
 use rtic::app;
 use systick_monotonic::*;
-use utils::{ScaleRatio, display_i32};
 
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
     use super::*;
-    use crate::drivers::{encoder::Encoder, tm1638::Tm1638, uart_dma::UartDma};
-    use crate::protocol::modbus::{DEFAULT_ADDRESS, HoldingRegisters, Modbus};
+    use dro08::drivers::{encoder::Encoder, tm1638::Tm1638, uart_dma::UartDma};
+    use dro08::protocol::modbus::{DEFAULT_ADDRESS, HoldingRegisters, Modbus};
 
     #[monotonic(binds = SysTick, default = true)]
     type SysMono = Systick<1000>;
@@ -66,8 +51,8 @@ mod app {
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let dp = ctx.device;
 
-        bsp::init_clocks(&dp.RCC);
-        bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
+        dro08::drivers::bsp::init_clocks(&dp.RCC);
+        dro08::drivers::bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
 
         let tm1638 = Tm1638::new();
         let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
@@ -89,13 +74,13 @@ mod app {
         cortex_m::asm::delay(9_600_000);
 
         let encoder = Encoder::new(&dp.GPIOA);
-        bsp::init_interrupts(&dp.EXTI);
+        dro08::drivers::bsp::init_interrupts(&dp.EXTI);
 
         // Spawn tasks
         tm1638_task::spawn().ok();
         uart_task::spawn().ok();
         relay_task::spawn().ok();
-        fsm_task::spawn().ok();
+        display_refresh_task::spawn().ok();
 
         (
             Shared {
@@ -169,7 +154,7 @@ mod app {
         });
     }
 
-#[task(
+    #[task(
         priority = 2,
         local = [uart, modbus],
         shared = [slave_addr, scaled_value] 
@@ -213,9 +198,7 @@ mod app {
         priority = 3,
         local = [relay],
         shared = [
-            encoder_count, scale_factor, scaled_value, 
-            limit_1, limit_2, relay_time, 
-            reset_requested, rl1_active, rl2_active
+            encoder_count, scale_factor, scaled_value,limit_1, limit_2, relay_time,reset_requested, rl1_active, rl2_active
         ]
     )]
     fn relay_task(mut ctx: relay_task::Context) {
@@ -278,7 +261,7 @@ mod app {
         let active_key = ctx.local.active_key;
 
         if raw_keys != 0 && *active_key == 0 {
-            use crate::drivers::tm1638::{KEY2, KEY6};
+            use dro08::drivers::tm1638::{KEY2, KEY6};
             // Immediate check for reset key press to speed up hardware reaction[cite: 1]
             if raw_keys == KEY2 || raw_keys == KEY6 {
                 ctx.shared.reset_requested.lock(|r| *r = true);
@@ -298,7 +281,7 @@ mod app {
         tm1638_task::spawn_after(10.millis()).ok();
     }
 
-#[task(
+    #[task(
         priority = 1,
         local = [
             menu_select: u8 = 0,
@@ -311,8 +294,8 @@ mod app {
             reset_requested
         ]
     )]
-    fn fsm_task(mut ctx: fsm_task::Context) {
-        use crate::drivers::tm1638::{KEY1, KEY2, KEY4, KEY5, KEY6};
+    fn display_refresh_task(mut ctx: display_refresh_task::Context) {
+        use dro08::drivers::tm1638::{KEY1, KEY2, KEY4, KEY5, KEY6};
 
         let pressed = ctx.shared.tm1638_keys.lock(|k| k.take()).unwrap_or(0);
         let menu_select = ctx.local.menu_select;
@@ -392,6 +375,6 @@ mod app {
         ctx.shared.tm1638_ram.lock(|ram| *ram = Some(ram_buf));
 
         // Fixed 300ms loop period
-        fsm_task::spawn_after(300.millis()).ok();
+        display_refresh_task::spawn_after(300.millis()).ok();
     }
 }
