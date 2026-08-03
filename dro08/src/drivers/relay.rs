@@ -4,7 +4,8 @@ pub struct RelayController {
     rl1_active: bool,
     rl2_active: bool,
     ticks_remaining: u32,
-    prev_triggered: bool,
+    prev_both_triggered: bool,
+    monostable_done: bool, // Latching flag to prevent turning back ON while still above limits
 }
 
 impl RelayController {
@@ -13,12 +14,11 @@ impl RelayController {
             rl1_active: false,
             rl2_active: false,
             ticks_remaining: 0,
-            prev_triggered: false,
+            prev_both_triggered: false,
+            monostable_done: false,
         }
     }
 
-    /// Evaluates limits and updates internal relay states.
-    /// MUST be called every 1 ms inside `relay_task`.
     pub fn update(
         &mut self,
         scaled_value: i32,
@@ -27,7 +27,6 @@ impl RelayController {
         relay_time_sec: u8,
         reset_pressed: bool,
     ) {
-        // 1. Explicit Reset Key handling
         if reset_pressed {
             self.reset();
             return;
@@ -35,9 +34,13 @@ impl RelayController {
 
         let l1_crossed = scaled_value >= limit_1;
         let l2_crossed = scaled_value >= limit_2;
-        let threshold_hit = l1_crossed || l2_crossed;
+        let both_crossed = l1_crossed && l2_crossed;
 
-        // 2. Mode Evaluation
+        // Reset the monostable latch once the system drops back below the trigger threshold
+        if !both_crossed {
+            self.monostable_done = false;
+        }
+
         if relay_time_sec == 0 {
             // --- LATCHING MODE ---
             if l1_crossed {
@@ -48,42 +51,45 @@ impl RelayController {
             }
         } else {
             // --- MONOSTABLE (TIMED) MODE ---
-            // Trigger pulse on initial rising edge crossing
-            if threshold_hit && !self.prev_triggered {
-                if l1_crossed {
-                    self.rl1_active = true;
-                }
-                if l2_crossed {
-                    self.rl2_active = true;
-                }
-                // 1 ms tick rate: 1 second = 1000 ticks
+
+            // Start timer on fresh rising edge (when not already completed in this cycle)
+            if both_crossed && !self.prev_both_triggered && !self.monostable_done {
                 self.ticks_remaining = u32::from(relay_time_sec) * 1000;
             }
 
-            // Countdown timer
             if self.ticks_remaining > 0 {
+                self.rl1_active = true;
+                self.rl2_active = true;
+
                 self.ticks_remaining -= 1;
+
                 if self.ticks_remaining == 0 {
                     self.rl1_active = false;
                     self.rl2_active = false;
+                    self.monostable_done = true; // Block re-activation until both_crossed becomes false
                 }
+            } else if self.monostable_done {
+                // Timer finished for this cycle -> Keep OFF
+                self.rl1_active = false;
+                self.rl2_active = false;
+            } else {
+                // Active as individual limits are reached before both are met
+                self.rl1_active = l1_crossed;
+                self.rl2_active = l2_crossed;
             }
         }
 
-        self.prev_triggered = threshold_hit;
+        self.prev_both_triggered = both_crossed;
     }
 
-    /// Drives physical pins on GPIOB (Active LOW: PB0 = RL1, PB1 = RL2)
     pub fn write_hardware(&self, gpiob: &pac::gpiob::RegisterBlock) {
         gpiob.bsrr().write(|w| {
-            // RL1 (PB0): Active LOW -> Reset bit (br0) = ON, Set bit (bs0) = OFF
             if self.rl1_active {
                 w.br0().set_bit();
             } else {
                 w.bs0().set_bit();
             }
 
-            // RL2 (PB1): Active LOW -> Reset bit (br1) = ON, Set bit (bs1) = OFF
             if self.rl2_active {
                 w.br1().set_bit();
             } else {
@@ -98,7 +104,8 @@ impl RelayController {
         self.rl1_active = false;
         self.rl2_active = false;
         self.ticks_remaining = 0;
-        self.prev_triggered = true; // Prevent immediate re-trigger if count is still high
+        self.prev_both_triggered = false;
+        self.monostable_done = false;
     }
 
     pub fn is_rl1_active(&self) -> bool {

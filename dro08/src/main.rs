@@ -157,7 +157,7 @@ mod app {
     #[task(
         priority = 2,
         local = [uart, modbus],
-        shared = [slave_addr, scaled_value] 
+        shared = [slave_addr, scaled_value]
     )]
     fn uart_task(mut ctx: uart_task::Context) {
         let uart = ctx.local.uart;
@@ -328,6 +328,7 @@ mod app {
                 if *menu_select == 0 {
                     ctx.shared.encoder_count.lock(|c| *c = 0);
                     ctx.shared.scaled_value.lock(|sv| *sv = 0);
+                    ctx.shared.reset_requested.lock(|r| *r = true);
                 }
             }
             _ => {}
@@ -358,7 +359,7 @@ mod app {
         if *menu_select > 0 && *menu_select <= 5 {
             let led_idx = (2 * (*menu_select + 2) + 1) as usize;
             if led_idx < ram_buf.len() {
-                ram_buf[led_idx] |= 1;
+                ram_buf[led_idx] = 1;
             }
         }
 
@@ -366,10 +367,10 @@ mod app {
             (&mut ctx.shared.rl1_active, &mut ctx.shared.rl2_active).lock(|r1, r2| (*r1, *r2));
 
         if rl1_on {
-            ram_buf[1] |= 1;
+            ram_buf[3] = 1;
         }
         if rl2_on {
-            ram_buf[3] |= 1;
+            ram_buf[5] = 1;
         }
 
         ctx.shared.tm1638_ram.lock(|ram| *ram = Some(ram_buf));
