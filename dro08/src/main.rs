@@ -4,12 +4,13 @@
 use panic_halt as _;
 use stm32c0::stm32c031 as pac;
 
-use dro08::{
-    DEFAULT_ADDRESS, Encoder, Modbus, RelayController, ScaleRatio, Tm1638, UartDma, bsp::SYSCLK_HZ,
-};
+use dro08::KeyEvent;
+use dro08::{DEFAULT_ADDRESS, Encoder, Modbus, RelayController, ScaleRatio, Tm1638, UartDma, bsp};
 
 use rtic::app;
 use systick_monotonic::*;
+
+const DELAY_2MS: u32 = bsp::SYSCLK_HZ / 500; // 2 MHz delay for TM1638 timing
 
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
@@ -29,7 +30,7 @@ mod app {
         relay_time: u8,
         slave_addr: u8,
         tm1638_ram: Option<[u8; 16]>,
-        tm1638_keys: Option<u32>,
+        key_event: Option<KeyEvent>,
 
         rl1_active: bool,
         rl2_active: bool,
@@ -50,8 +51,8 @@ mod app {
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let dp = ctx.device;
 
-        dro08::drivers::bsp::init_clocks(&dp.RCC);
-        dro08::drivers::bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
+        dro08::bsp::init_clocks(&dp.RCC);
+        dro08::bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
 
         let tm1638 = Tm1638::new();
         let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
@@ -68,17 +69,17 @@ mod app {
         let scale_factor = ScaleRatio::new(25, 2);
         let scaled_value = scale_factor.apply(encoder_count);
 
-        let mono = Systick::new(ctx.core.SYST, SYSCLK_HZ);
+        let mono = Systick::new(ctx.core.SYST, bsp::SYSCLK_HZ);
 
-        cortex_m::asm::delay(9_600_000);
+        cortex_m::asm::delay(DELAY_2MS); // Wait for TM1638 to power up
 
         let encoder = Encoder::new(&dp.GPIOA);
-        dro08::drivers::bsp::init_interrupts(&dp.EXTI);
+        bsp::init_interrupts(&dp.EXTI);
 
         // Spawn tasks
-        tm1638_task::spawn().ok();
-        uart_task::spawn().ok();
         relay_task::spawn().ok();
+        uart_task::spawn().ok();
+        tm1638_task::spawn().ok();
         display_refresh_task::spawn().ok();
 
         (
@@ -93,7 +94,7 @@ mod app {
                 slave_addr,
 
                 tm1638_ram: None,
-                tm1638_keys: None,
+                key_event: None,
 
                 rl1_active: false,
                 rl2_active: false,
@@ -119,6 +120,20 @@ mod app {
     }
 
     #[task(
+        binds = EXTI4_15,
+        priority = 4,
+        shared = [encoder_count],
+    )]
+    fn exti4_15(mut ctx: exti4_15::Context) {
+        let exti = unsafe { &*pac::EXTI::ptr() };
+        exti.fpr1().write(|w| w.fpif6().set_bit());
+
+        ctx.shared.encoder_count.lock(|count| {
+            *count = -123_456;
+        });
+    }
+
+    #[task(
         binds = EXTI0_1,
         priority = 3,
         shared = [encoder_count],
@@ -139,43 +154,9 @@ mod app {
             });
         }
     }
-    #[task(
-        binds = EXTI4_15,
-        priority = 4,
-        shared = [encoder_count],
-    )]
-    fn exti4_15(mut ctx: exti4_15::Context) {
-        let exti = unsafe { &*pac::EXTI::ptr() };
-        exti.fpr1().write(|w| w.fpif6().set_bit());
-
-        ctx.shared.encoder_count.lock(|count| {
-            *count = -123_456;
-        });
-    }
 
     #[task(
         priority = 2,
-        local = [uart, modbus],
-        shared = [slave_addr, scaled_value]
-    )]
-    fn uart_task(mut ctx: uart_task::Context) {
-        let current_scaled = ctx.shared.scaled_value.lock(|sv| *sv);
-        let current_addr = ctx.shared.slave_addr.lock(|a| *a);
-
-        if let Some(new_addr) = dro08::process_uart(
-            ctx.local.uart,
-            ctx.local.modbus,
-            current_scaled,
-            current_addr,
-        ) {
-            ctx.shared.slave_addr.lock(|a| *a = new_addr);
-        }
-
-        uart_task::spawn_after(1.millis()).ok();
-    }
-
-    #[task(
-        priority = 3,
         local = [relay],
         shared = [
             encoder_count, scale_factor, scaled_value,limit_1,
@@ -222,39 +203,57 @@ mod app {
     }
 
     #[task(
-        local = [
-            tm1638,
-            active_key: u32 = 0,
-        ],
-        shared = [tm1638_ram, tm1638_keys, reset_requested]
+        priority = 2,
+        local = [uart, modbus],
+        shared = [slave_addr, scaled_value]
     )]
+    fn uart_task(mut ctx: uart_task::Context) {
+        let current_scaled = ctx.shared.scaled_value.lock(|sv| *sv);
+        let current_addr = ctx.shared.slave_addr.lock(|a| *a);
+
+        if let Some(new_addr) = dro08::process_uart(
+            ctx.local.uart,
+            ctx.local.modbus,
+            current_scaled,
+            current_addr,
+        ) {
+            ctx.shared.slave_addr.lock(|a| *a = new_addr);
+        }
+
+        uart_task::spawn_after(1.millis()).ok();
+    }
+
+    #[task(
+        priority = 1,
+    local = [
+        tm1638,
+        keyboard: dro08::Keyboard = dro08::Keyboard::new(),
+    ],
+    shared = [tm1638_ram, key_event, reset_requested]
+)]
     fn tm1638_task(mut ctx: tm1638_task::Context) {
         let tm = ctx.local.tm1638;
 
         let mut key_buf = [0u8; 4];
         tm.read_keys(&mut key_buf);
 
-        let raw_keys = (key_buf[3] as u32) << 24
-            | (key_buf[2] as u32) << 16
-            | (key_buf[1] as u32) << 8
-            | (key_buf[0] as u32);
+        let raw_keys = u32::from_le_bytes(key_buf);
 
-        let active_key = ctx.local.active_key;
+        if let Some(event) = ctx.local.keyboard.update(raw_keys) {
+            use dro08::{Key, KeyEvent};
 
-        if raw_keys != 0 && *active_key == 0 {
-            use dro08::drivers::tm1638::{KEY2, KEY6};
-            // Immediate check for reset key press to speed up hardware reaction[cite: 1]
-            if raw_keys == KEY2 || raw_keys == KEY6 {
+            ctx.shared.key_event.lock(|e| *e = Some(event));
+
+            if matches!(
+                event,
+                KeyEvent::Short(Key::Key2) | KeyEvent::Short(Key::Key6)
+            ) {
                 ctx.shared.reset_requested.lock(|r| *r = true);
             }
-
-            ctx.shared.tm1638_keys.lock(|k| *k = Some(raw_keys));
-            *active_key = raw_keys;
-        } else if raw_keys == 0 {
-            *active_key = 0;
         }
 
-        let ram_data = ctx.shared.tm1638_ram.lock(|ram| *ram);
+        let ram_data = ctx.shared.tm1638_ram.lock(|ram| ram.take());
+
         if let Some(data) = ram_data {
             tm.write_display(&data);
         }
@@ -271,12 +270,12 @@ mod app {
     shared = [
         encoder_count, scale_factor, scaled_value,
         preset_count, relay_time, limit_1, limit_2,
-        tm1638_keys, tm1638_ram, rl1_active, rl2_active,
+        key_event, tm1638_ram, rl1_active, rl2_active,
         reset_requested
     ]
 )]
     fn display_refresh_task(mut ctx: display_refresh_task::Context) {
-        let key_pressed = ctx.shared.tm1638_keys.lock(|k| k.take()).unwrap_or(0);
+        let key_event = ctx.shared.key_event.lock(|k| k.take());
 
         // 1. Snapshot shared state
         let (preset_count, scale_factor, scaled_value, limit_1, limit_2, relay_time) = (
@@ -293,7 +292,7 @@ mod app {
             (&mut ctx.shared.rl1_active, &mut ctx.shared.rl2_active).lock(|r1, r2| (*r1, *r2));
 
         let state = dro08::DisplayState {
-            key_pressed,
+            key_event,
             menu_select: *ctx.local.menu_select,
             decimal_dp: *ctx.local.decimal_dp,
             preset_count,

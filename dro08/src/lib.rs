@@ -6,6 +6,7 @@ pub mod protocol;
 // --- Re-exports for convenient top-level access ---
 pub use drivers::bsp;
 pub use drivers::encoder::Encoder;
+pub use drivers::keyboard::{self, Key, KeyEvent, Keyboard};
 pub use drivers::relay::RelayController;
 pub use drivers::tm1638::{self, FONT, Tm1638};
 pub use drivers::uart_dma::UartDma;
@@ -83,11 +84,9 @@ pub fn display_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8) {
     }
 }
 
-use crate::drivers::tm1638::{KEY1, KEY2, KEY4, KEY5, KEY6};
-
 /// Input snapshot needed to compute menu transitions and display RAM
 pub struct DisplayState {
-    pub key_pressed: u32,
+    pub key_event: Option<KeyEvent>,
     pub menu_select: u8,
     pub decimal_dp: u8,
     pub preset_count: i32,
@@ -117,26 +116,35 @@ pub fn process_display_ui(
     let mut action = DisplayAction::None;
 
     // 1. Process Key Presses & State Transitions
-    match state.key_pressed {
-        KEY1 => *menu_select = (*menu_select + 1) % 6,
-        KEY2 => *menu_select = 0,
-        KEY4 => {
+    match state.key_event {
+        Some(KeyEvent::Short(Key::Key1)) => {
+            *menu_select = (*menu_select + 1) % 6;
+        }
+
+        Some(KeyEvent::Short(Key::Key2)) => {
+            *menu_select = 0;
+        }
+
+        Some(KeyEvent::Short(Key::Key4)) => {
             let raw_target = state.scale_factor.unapply(state.preset_count);
             action = DisplayAction::ApplyPreset {
                 raw_target,
                 preset: state.preset_count,
             };
         }
-        KEY5 => {
+
+        Some(KeyEvent::Short(Key::Key5)) => {
             if *menu_select == 0 {
                 *decimal_dp = (*decimal_dp + 1) % 6;
             }
         }
-        KEY6 => {
+
+        Some(KeyEvent::Short(Key::Key6)) => {
             if *menu_select == 0 {
                 action = DisplayAction::ResetEncoder;
             }
         }
+
         _ => {}
     }
 
@@ -148,12 +156,10 @@ pub fn process_display_ui(
         4 => (state.relay_time as i32, 0),
         5 => (state.scale_factor.val as i32, state.scale_factor.dp),
         _ => (
-            if state.key_pressed == KEY4 {
-                state.preset_count
-            } else if state.key_pressed == KEY6 {
-                0
-            } else {
-                state.scaled_value
+            match action {
+                DisplayAction::ApplyPreset { preset, .. } => preset,
+                DisplayAction::ResetEncoder => 0,
+                DisplayAction::None => state.scaled_value,
             },
             *decimal_dp,
         ),
@@ -164,7 +170,7 @@ pub fn process_display_ui(
     display_i32(value, &mut ram_buf, dp);
 
     // Menu Indicator LEDs
-    if *menu_select > 0 && *menu_select <= 5 {
+    if (1..=5).contains(menu_select) {
         let led_idx = (2 * (*menu_select + 2) + 1) as usize;
         if led_idx < ram_buf.len() {
             ram_buf[led_idx] = 1;
