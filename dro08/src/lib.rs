@@ -3,7 +3,15 @@
 pub mod drivers;
 pub mod protocol;
 
-use crate::drivers::tm1638::FONT;
+// --- Re-exports for convenient top-level access ---
+pub use drivers::bsp;
+pub use drivers::encoder::Encoder;
+pub use drivers::relay::RelayController;
+pub use drivers::tm1638::{self, FONT, Tm1638};
+pub use drivers::uart_dma::UartDma;
+pub use protocol::modbus::{self, DEFAULT_ADDRESS, HoldingRegisters, Modbus};
+
+// ... (keep rest of ScaleRatio and display_i32 as is)
 
 const POW10: [i64; 6] = [1, 10, 100, 1_000, 10_000, 100_000];
 
@@ -73,4 +81,143 @@ pub fn display_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8) {
     if negative {
         ram_data[2] = 0x40;
     }
+}
+
+use crate::drivers::tm1638::{KEY1, KEY2, KEY4, KEY5, KEY6};
+
+/// Input snapshot needed to compute menu transitions and display RAM
+pub struct DisplayState {
+    pub key_pressed: u32,
+    pub menu_select: u8,
+    pub decimal_dp: u8,
+    pub preset_count: i32,
+    pub scale_factor: ScaleRatio,
+    pub scaled_value: i32,
+    pub limit_1: i32,
+    pub limit_2: i32,
+    pub relay_time: u8,
+    pub rl1_active: bool,
+    pub rl2_active: bool,
+}
+
+/// Actions required by RTIC task after processing menu input
+#[derive(Debug, PartialEq, Eq)]
+pub enum DisplayAction {
+    None,
+    ApplyPreset { raw_target: i32, preset: i32 },
+    ResetEncoder,
+}
+
+/// Helper to update display state, generate RAM buffer, and signal required actions
+pub fn process_display_ui(
+    state: &DisplayState,
+    menu_select: &mut u8,
+    decimal_dp: &mut u8,
+) -> ([u8; 16], DisplayAction) {
+    let mut action = DisplayAction::None;
+
+    // 1. Process Key Presses & State Transitions
+    match state.key_pressed {
+        KEY1 => *menu_select = (*menu_select + 1) % 6,
+        KEY2 => *menu_select = 0,
+        KEY4 => {
+            let raw_target = state.scale_factor.unapply(state.preset_count);
+            action = DisplayAction::ApplyPreset {
+                raw_target,
+                preset: state.preset_count,
+            };
+        }
+        KEY5 => {
+            if *menu_select == 0 {
+                *decimal_dp = (*decimal_dp + 1) % 6;
+            }
+        }
+        KEY6 => {
+            if *menu_select == 0 {
+                action = DisplayAction::ResetEncoder;
+            }
+        }
+        _ => {}
+    }
+
+    // 2. Select Value and Decimal Point to Display
+    let (value, dp) = match *menu_select {
+        1 => (state.preset_count, 0),
+        2 => (state.limit_1, 0),
+        3 => (state.limit_2, 0),
+        4 => (state.relay_time as i32, 0),
+        5 => (state.scale_factor.val as i32, state.scale_factor.dp),
+        _ => (
+            if state.key_pressed == KEY4 {
+                state.preset_count
+            } else if state.key_pressed == KEY6 {
+                0
+            } else {
+                state.scaled_value
+            },
+            *decimal_dp,
+        ),
+    };
+
+    // 3. Render TM1638 RAM Buffer
+    let mut ram_buf = [0u8; 16];
+    display_i32(value, &mut ram_buf, dp);
+
+    // Menu Indicator LEDs
+    if *menu_select > 0 && *menu_select <= 5 {
+        let led_idx = (2 * (*menu_select + 2) + 1) as usize;
+        if led_idx < ram_buf.len() {
+            ram_buf[led_idx] = 1;
+        }
+    }
+
+    // Relay Status LEDs
+    if state.rl1_active {
+        ram_buf[3] = 1;
+    }
+    if state.rl2_active {
+        ram_buf[5] = 1;
+    }
+
+    (ram_buf, action)
+}
+
+// lib.rs
+
+/// Processes pending UART Modbus traffic and handles node address updates.
+///
+/// Returns `Some(u8)` with the new slave address if a valid change was requested,
+/// or `None` otherwise.
+pub fn process_uart(
+    uart: &mut UartDma,
+    modbus: &mut Modbus,
+    current_scaled: i32,
+    current_addr: u8,
+) -> Option<u8> {
+    uart.poll();
+
+    if uart.tx_busy() {
+        return None;
+    }
+
+    modbus.set_address(current_addr);
+
+    let raw_bits = current_scaled as u32;
+
+    let mut registers = HoldingRegisters {
+        value_low: (raw_bits & 0xFFFF) as u16,
+        value_high: ((raw_bits >> 16) & 0xFFFF) as u16,
+        node_address: current_addr as u16,
+        new_node_address: current_addr as u16,
+    };
+
+    if uart.process_modbus(modbus, &mut registers) {
+        let new_addr = registers.new_node_address as u8;
+        if new_addr != current_addr && new_addr > 0 && new_addr < 248 {
+            modbus.set_address(new_addr);
+            return Some(new_addr);
+        }
+    }
+
+    None
 }

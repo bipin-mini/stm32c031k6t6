@@ -227,7 +227,6 @@ impl Encoder {
     /// This function has a constant execution path and should be called
     /// whenever either encoder input changes, typically from the EXTI
     /// interrupt.
-    #[inline(always)]
     pub fn update(&mut self, gpioa: &gpioa::RegisterBlock) -> i8 {
         let curr = (gpioa.idr().read().bits() & ENC_MASK) as u8;
 

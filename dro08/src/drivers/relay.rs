@@ -32,8 +32,8 @@ impl RelayController {
             return;
         }
 
-        let l1_crossed = scaled_value >= limit_1;
-        let l2_crossed = scaled_value >= limit_2;
+        let l1_crossed = scaled_value.abs() >= limit_1.abs();
+        let l2_crossed = scaled_value.abs() >= limit_2.abs();
         let both_crossed = l1_crossed && l2_crossed;
 
         // Reset the monostable latch once the system drops back below the trigger threshold

@@ -50,63 +50,53 @@ type GpioaRb = pac::gpioa::RegisterBlock;
 pub struct Tm1638;
 
 // Return GPIOA registers.
-#[inline(always)]
 fn gpio() -> &'static GpioaRb {
     unsafe { &*pac::GPIOA::ptr() }
 }
 
 // Drive STB high.
-#[inline(always)]
 fn stb_high() {
     gpio().bsrr().write(|w| w.bs4().set_bit());
 }
 
 // Drive STB low.
-#[inline(always)]
 fn stb_low() {
     gpio().bsrr().write(|w| w.br4().set_bit());
 }
 
 // Drive CLK high.
-#[inline(always)]
 fn clk_high() {
     gpio().bsrr().write(|w| w.bs5().set_bit());
 }
 
 // Drive CLK low.
-#[inline(always)]
 fn clk_low() {
     gpio().bsrr().write(|w| w.br5().set_bit());
 }
 
 // Drive DIO high.
-#[inline(always)]
 fn dio_high() {
     gpio().moder().modify(|_, w| w.mode7().input());
 }
 
 // Drive DIO low.
-#[inline(always)]
 fn dio_low() {
     gpio().bsrr().write(|w| w.br7().set_bit());
     gpio().moder().modify(|_, w| w.mode7().output());
 }
 
 // Read DIO input.
-#[inline(always)]
 fn dio_read() -> bool {
     (gpio().idr().read().bits() & DIO) != 0
 }
 
 // Short timing delay.
-#[inline(always)]
 fn delay() {
     cortex_m::asm::nop();
     cortex_m::asm::nop();
 }
 
 // Write one byte LSB first.
-#[inline(always)]
 fn write_byte(mut data: u8) {
     for _ in 0..8 {
         clk_low();
@@ -130,7 +120,6 @@ fn write_byte(mut data: u8) {
 }
 
 // Read one byte LSB first.
-#[inline(always)]
 fn read_byte() -> u8 {
     dio_high(); // Release bus once
 
@@ -195,7 +184,6 @@ impl Tm1638 {
     }
 
     // Enable or disable the display.
-    #[inline]
     pub fn set_display(&mut self, on: bool, brightness: u8) {
         let cmd = if on {
             CMD_DISPLAY_ON | (brightness & 0x07)
@@ -209,7 +197,6 @@ impl Tm1638 {
     }
 
     // Write the complete 16-byte display RAM.
-    #[inline]
     pub fn write_display(&mut self, data: &[u8; 16]) {
         // Select auto-increment mode.
         stb_low();
@@ -229,12 +216,10 @@ impl Tm1638 {
     }
 
     // Clear the display.
-    #[inline]
     pub fn clear(&mut self) {
         self.write_display(&[0; 16]);
     }
     // Read the four key scan bytes.
-    #[inline]
     pub fn read_keys(&mut self, buf: &mut [u8; 4]) {
         stb_low();
         write_byte(CMD_DATA_READ);

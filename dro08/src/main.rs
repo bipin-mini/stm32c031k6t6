@@ -4,17 +4,16 @@
 use panic_halt as _;
 use stm32c0::stm32c031 as pac;
 
-use dro08::drivers::bsp::SYSCLK_HZ;
-use dro08::drivers::relay::RelayController;
-use dro08::{ScaleRatio, display_i32};
+use dro08::{
+    DEFAULT_ADDRESS, Encoder, Modbus, RelayController, ScaleRatio, Tm1638, UartDma, bsp::SYSCLK_HZ,
+};
+
 use rtic::app;
 use systick_monotonic::*;
 
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
     use super::*;
-    use dro08::drivers::{encoder::Encoder, tm1638::Tm1638, uart_dma::UartDma};
-    use dro08::protocol::modbus::{DEFAULT_ADDRESS, HoldingRegisters, Modbus};
 
     #[monotonic(binds = SysTick, default = true)]
     type SysMono = Systick<1000>;
@@ -63,7 +62,7 @@ mod app {
         let preset_count = -5000;
         let limit_1 = 100;
         let limit_2 = 200;
-        let relay_time = 10;
+        let relay_time = 0;
         let slave_addr = DEFAULT_ADDRESS;
         let decimal_dp = 0;
         let scale_factor = ScaleRatio::new(25, 2);
@@ -160,35 +159,16 @@ mod app {
         shared = [slave_addr, scaled_value]
     )]
     fn uart_task(mut ctx: uart_task::Context) {
-        let uart = ctx.local.uart;
-        let modbus = ctx.local.modbus;
-
         let current_scaled = ctx.shared.scaled_value.lock(|sv| *sv);
         let current_addr = ctx.shared.slave_addr.lock(|a| *a);
 
-        uart.poll();
-
-        if !uart.tx_busy() {
-            modbus.set_address(current_addr);
-
-            let raw_bits = current_scaled as u32;
-
-            let mut registers = HoldingRegisters {
-                value_low: (raw_bits & 0xFFFF) as u16,
-                value_high: ((raw_bits >> 16) & 0xFFFF) as u16,
-                node_address: current_addr as u16,
-                new_node_address: current_addr as u16,
-            };
-
-            if uart.process_modbus(modbus, &mut registers) {
-                // scaled_value is strictly READ-ONLY over Modbus.
-                // We only check and update slave node address changes:
-                let new_addr = registers.new_node_address as u8;
-                if new_addr != current_addr && new_addr > 0 && new_addr < 248 {
-                    ctx.shared.slave_addr.lock(|a| *a = new_addr);
-                    modbus.set_address(new_addr);
-                }
-            }
+        if let Some(new_addr) = dro08::process_uart(
+            ctx.local.uart,
+            ctx.local.modbus,
+            current_scaled,
+            current_addr,
+        ) {
+            ctx.shared.slave_addr.lock(|a| *a = new_addr);
         }
 
         uart_task::spawn_after(1.millis()).ok();
@@ -198,7 +178,8 @@ mod app {
         priority = 3,
         local = [relay],
         shared = [
-            encoder_count, scale_factor, scaled_value,limit_1, limit_2, relay_time,reset_requested, rl1_active, rl2_active
+            encoder_count, scale_factor, scaled_value,limit_1,
+            limit_2, relay_time,reset_requested, rl1_active, rl2_active
         ]
     )]
     fn relay_task(mut ctx: relay_task::Context) {
@@ -282,26 +263,23 @@ mod app {
     }
 
     #[task(
-        priority = 1,
-        local = [
-            menu_select: u8 = 0,
-            decimal_dp,
-        ],
-        shared = [
-            encoder_count, scale_factor, scaled_value,
-            preset_count, relay_time, limit_1, limit_2,
-            tm1638_keys, tm1638_ram, rl1_active, rl2_active,
-            reset_requested
-        ]
-    )]
+    priority = 1,
+    local = [
+        menu_select: u8 = 0,
+        decimal_dp,
+    ],
+    shared = [
+        encoder_count, scale_factor, scaled_value,
+        preset_count, relay_time, limit_1, limit_2,
+        tm1638_keys, tm1638_ram, rl1_active, rl2_active,
+        reset_requested
+    ]
+)]
     fn display_refresh_task(mut ctx: display_refresh_task::Context) {
-        use dro08::drivers::tm1638::{KEY1, KEY2, KEY4, KEY5, KEY6};
+        let key_pressed = ctx.shared.tm1638_keys.lock(|k| k.take()).unwrap_or(0);
 
-        let pressed = ctx.shared.tm1638_keys.lock(|k| k.take()).unwrap_or(0);
-        let menu_select = ctx.local.menu_select;
-        let decimal_dp = ctx.local.decimal_dp;
-
-        let (preset, scale, scale_val, l1, l2, t) = (
+        // 1. Snapshot shared state
+        let (preset_count, scale_factor, scaled_value, limit_1, limit_2, relay_time) = (
             &mut ctx.shared.preset_count,
             &mut ctx.shared.scale_factor,
             &mut ctx.shared.scaled_value,
@@ -311,71 +289,44 @@ mod app {
         )
             .lock(|p, f, s, l1, l2, t| (*p, *f, *s, *l1, *l2, *t));
 
-        match pressed {
-            KEY1 => *menu_select = (*menu_select + 1) % 6,
-            KEY2 => *menu_select = 0,
-            KEY4 => {
-                let raw_target = scale.unapply(preset);
+        let (rl1_active, rl2_active) =
+            (&mut ctx.shared.rl1_active, &mut ctx.shared.rl2_active).lock(|r1, r2| (*r1, *r2));
+
+        let state = dro08::DisplayState {
+            key_pressed,
+            menu_select: *ctx.local.menu_select,
+            decimal_dp: *ctx.local.decimal_dp,
+            preset_count,
+            scale_factor,
+            scaled_value,
+            limit_1,
+            limit_2,
+            relay_time,
+            rl1_active,
+            rl2_active,
+        };
+
+        // 2. Compute display RAM and state actions in lib
+        let (ram_buf, action) =
+            dro08::process_display_ui(&state, ctx.local.menu_select, ctx.local.decimal_dp);
+
+        // 3. Execute actions on RTIC shared state
+        match action {
+            dro08::DisplayAction::ApplyPreset { raw_target, preset } => {
                 ctx.shared.encoder_count.lock(|c| *c = raw_target);
                 ctx.shared.scaled_value.lock(|sv| *sv = preset);
             }
-            KEY5 => {
-                if *menu_select == 0 {
-                    *decimal_dp = (*decimal_dp + 1) % 6;
-                }
+            dro08::DisplayAction::ResetEncoder => {
+                ctx.shared.encoder_count.lock(|c| *c = 0);
+                ctx.shared.scaled_value.lock(|sv| *sv = 0);
+                ctx.shared.reset_requested.lock(|r| *r = true);
             }
-            KEY6 => {
-                if *menu_select == 0 {
-                    ctx.shared.encoder_count.lock(|c| *c = 0);
-                    ctx.shared.scaled_value.lock(|sv| *sv = 0);
-                    ctx.shared.reset_requested.lock(|r| *r = true);
-                }
-            }
-            _ => {}
+            dro08::DisplayAction::None => {}
         }
 
-        // Select value and decimal point position
-        let (value, dp) = match *menu_select {
-            1 => (preset, 0),
-            2 => (l1, 0),
-            3 => (l2, 0),
-            4 => (t as i32, 0),
-            5 => (scale.val as i32, scale.dp),
-            _ => (
-                if pressed == KEY4 {
-                    preset
-                } else if pressed == KEY6 {
-                    0
-                } else {
-                    scale_val
-                },
-                *decimal_dp,
-            ),
-        };
-
-        let mut ram_buf = [0u8; 16];
-        display_i32(value, &mut ram_buf, dp);
-
-        if *menu_select > 0 && *menu_select <= 5 {
-            let led_idx = (2 * (*menu_select + 2) + 1) as usize;
-            if led_idx < ram_buf.len() {
-                ram_buf[led_idx] = 1;
-            }
-        }
-
-        let (rl1_on, rl2_on) =
-            (&mut ctx.shared.rl1_active, &mut ctx.shared.rl2_active).lock(|r1, r2| (*r1, *r2));
-
-        if rl1_on {
-            ram_buf[3] = 1;
-        }
-        if rl2_on {
-            ram_buf[5] = 1;
-        }
-
+        // 4. Update TM1638 RAM buffer
         ctx.shared.tm1638_ram.lock(|ram| *ram = Some(ram_buf));
 
-        // Fixed 300ms loop period
         display_refresh_task::spawn_after(300.millis()).ok();
     }
 }
