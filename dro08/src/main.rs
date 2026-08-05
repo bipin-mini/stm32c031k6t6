@@ -4,8 +4,8 @@
 use panic_halt as _;
 use stm32c0::stm32c031 as pac;
 
-use dro08::KeyEvent;
 use dro08::{DEFAULT_ADDRESS, Encoder, Modbus, RelayController, ScaleRatio, Tm1638, UartDma, bsp};
+use dro08::{Key, KeyEvent};
 
 use rtic::app;
 use systick_monotonic::*;
@@ -78,9 +78,10 @@ mod app {
 
         // Spawn tasks
         relay_task::spawn().ok();
-        uart_task::spawn().ok();
-        tm1638_task::spawn().ok();
-        display_refresh_task::spawn().ok();
+        modbus_task::spawn().ok();
+        console_task::spawn().ok();
+        normal_task::spawn().ok();
+        edit_task::spawn().ok();
 
         (
             Shared {
@@ -124,7 +125,7 @@ mod app {
         priority = 4,
         shared = [encoder_count],
     )]
-    fn exti4_15(mut ctx: exti4_15::Context) {
+    fn encoder_task(mut ctx: encoder_task::Context) {
         let exti = unsafe { &*pac::EXTI::ptr() };
         exti.fpr1().write(|w| w.fpif6().set_bit());
 
@@ -139,7 +140,7 @@ mod app {
         shared = [encoder_count],
         local = [encoder],
     )]
-    fn exti0_1(mut ctx: exti0_1::Context) {
+    fn power_fail_task(mut ctx: power_fail_task::Context) {
         let exti = unsafe { &*pac::EXTI::ptr() };
         let gpioa = unsafe { &*pac::GPIOA::ptr() };
 
@@ -207,7 +208,7 @@ mod app {
         local = [uart, modbus],
         shared = [slave_addr, scaled_value]
     )]
-    fn uart_task(mut ctx: uart_task::Context) {
+    fn modbus_task(mut ctx: modbus_task::Context) {
         let current_scaled = ctx.shared.scaled_value.lock(|sv| *sv);
         let current_addr = ctx.shared.slave_addr.lock(|a| *a);
 
@@ -220,7 +221,7 @@ mod app {
             ctx.shared.slave_addr.lock(|a| *a = new_addr);
         }
 
-        uart_task::spawn_after(1.millis()).ok();
+        modbus_task::spawn_after(1.millis()).ok();
     }
 
     #[task(
@@ -231,7 +232,7 @@ mod app {
     ],
     shared = [tm1638_ram, key_event, reset_requested]
 )]
-    fn tm1638_task(mut ctx: tm1638_task::Context) {
+    fn console_task(mut ctx: console_task::Context) {
         let tm = ctx.local.tm1638;
 
         let mut key_buf = [0u8; 4];
@@ -240,8 +241,6 @@ mod app {
         let raw_keys = u32::from_le_bytes(key_buf);
 
         if let Some(event) = ctx.local.keyboard.update(raw_keys) {
-            use dro08::{Key, KeyEvent};
-
             ctx.shared.key_event.lock(|e| *e = Some(event));
 
             if matches!(
@@ -258,7 +257,7 @@ mod app {
             tm.write_display(&data);
         }
 
-        tm1638_task::spawn_after(10.millis()).ok();
+        console_task::spawn_after(10.millis()).ok();
     }
 
     #[task(
@@ -274,7 +273,7 @@ mod app {
         reset_requested
     ]
 )]
-    fn display_refresh_task(mut ctx: display_refresh_task::Context) {
+    fn normal_task(mut ctx: normal_task::Context) {
         let key_event = ctx.shared.key_event.lock(|k| k.take());
 
         // 1. Snapshot shared state
@@ -326,6 +325,13 @@ mod app {
         // 4. Update TM1638 RAM buffer
         ctx.shared.tm1638_ram.lock(|ram| *ram = Some(ram_buf));
 
-        display_refresh_task::spawn_after(300.millis()).ok();
+        normal_task::spawn_after(300.millis()).ok();
     }
+
+    #[task(
+        priority = 1,
+        shared = [],
+        local = [],
+    )]
+    fn edit_task(_ctx: edit_task::Context) {}
 }
