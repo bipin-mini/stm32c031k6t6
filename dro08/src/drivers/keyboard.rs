@@ -10,45 +10,6 @@ pub const KEY3: u32 = 0x0000_0100;
 pub const KEY2: u32 = 0x0000_0010;
 pub const KEY1: u32 = 0x0000_0001;
 
-/*
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Key {
-    Key1,
-    Key2,
-    Key3,
-    Key4,
-    Key5,
-    Key6,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum KeyEvent {
-    Short(Key),
-    Long(Key),
-}
-
-pub struct Keyboard;
-
-impl Keyboard {
-    pub const fn new() -> Self {
-        Self
-    }
-
-    pub fn update(&mut self, raw_keys: u32) -> Option<KeyEvent> {
-        match raw_keys {
-            KEY1 => Some(KeyEvent::Short(Key::Key1)),
-            KEY2 => Some(KeyEvent::Short(Key::Key2)),
-            KEY3 => Some(KeyEvent::Short(Key::Key3)),
-            KEY4 => Some(KeyEvent::Short(Key::Key4)),
-            KEY5 => Some(KeyEvent::Short(Key::Key5)),
-            KEY6 => Some(KeyEvent::Short(Key::Key6)),
-            _ => None,
-        }
-    }
-}
-*/
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Key {
     Key1,

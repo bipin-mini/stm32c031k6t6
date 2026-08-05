@@ -30,6 +30,8 @@ mod app {
         relay_time: u8,
         slave_addr: u8,
         tm1638_ram: Option<[u8; 16]>,
+        blink_mask: Option<u16>,
+
         key_event: Option<KeyEvent>,
 
         rl1_active: bool,
@@ -81,7 +83,7 @@ mod app {
         modbus_task::spawn().ok();
         console_task::spawn().ok();
         normal_task::spawn().ok();
-        edit_task::spawn().ok();
+        //edit_task::spawn().ok();
 
         (
             Shared {
@@ -95,6 +97,7 @@ mod app {
                 slave_addr,
 
                 tm1638_ram: None,
+                blink_mask: None,
                 key_event: None,
 
                 rl1_active: false,
@@ -225,19 +228,21 @@ mod app {
     }
 
     #[task(
-        priority = 1,
+    priority = 1,
     local = [
         tm1638,
         keyboard: dro08::Keyboard = dro08::Keyboard::new(),
+        blinker: dro08::Blinker = dro08::Blinker::new(),
+        current_ram: [u8; 16] = [0u8; 16],
     ],
-    shared = [tm1638_ram, key_event, reset_requested]
+    shared = [tm1638_ram, blink_mask, key_event, reset_requested],
 )]
     fn console_task(mut ctx: console_task::Context) {
         let tm = ctx.local.tm1638;
 
+        // 1. Process Hardware Keys
         let mut key_buf = [0u8; 4];
         tm.read_keys(&mut key_buf);
-
         let raw_keys = u32::from_le_bytes(key_buf);
 
         if let Some(event) = ctx.local.keyboard.update(raw_keys) {
@@ -251,11 +256,20 @@ mod app {
             }
         }
 
-        let ram_data = ctx.shared.tm1638_ram.lock(|ram| ram.take());
-
-        if let Some(data) = ram_data {
-            tm.write_display(&data);
+        // 2. Poll new display payload if published by other tasks
+        if let Some(ram) = ctx.shared.tm1638_ram.lock(|r| r.take()) {
+            *ctx.local.current_ram = ram;
         }
+
+        // 3. Fetch active blink mask from separate shared variable
+        let active_mask = ctx.shared.blink_mask.lock(|m| *m);
+
+        // 4. Prepare frame copy and modify in-place via Blinker
+        let mut render_ram = *ctx.local.current_ram;
+        ctx.local.blinker.update(&mut render_ram, active_mask);
+
+        // 5. Render output to physical hardware
+        tm.write_display(&render_ram);
 
         console_task::spawn_after(10.millis()).ok();
     }
@@ -329,9 +343,54 @@ mod app {
     }
 
     #[task(
-        priority = 1,
-        shared = [],
-        local = [],
-    )]
-    fn edit_task(_ctx: edit_task::Context) {}
+    priority = 1,
+    local = [
+        active_digit: u8 = 0, // Digit 0 to 7
+    ],
+    shared = [
+        key_event,
+        tm1638_ram,
+        blink_mask,
+    ]
+)]
+    fn edit_task(mut ctx: edit_task::Context) {
+        // 1. Read key event published by console_task
+        let key_event = ctx.shared.key_event.lock(|k| k.take());
+
+        if let Some(event) = key_event {
+            match event {
+                // Short press Key1: Cycle blinking digit position (0 through 7)
+                KeyEvent::Long(Key::Key3) => {
+                    *ctx.local.active_digit = (*ctx.local.active_digit + 1) % 8;
+                }
+                _ => {}
+            }
+        }
+
+        // 2. Prepare mock display buffer showing edit mode state (e.g. "EdiT   X")
+        let mut edit_ram = [0u8; 16];
+
+        // TM1638 standard display module digit mapping (even indices 0, 2, 4, 6, 8, 10, 12, 14)
+        // 7-segment encoding: 'E', 'd', 'I', 't'
+        edit_ram[0] = 0b0111_1001; // 'E'
+        edit_ram[2] = 0b0101_1110; // 'd'
+        edit_ram[4] = 0b0000_0110; // 'I'
+        edit_ram[6] = 0b0111_1000; // 't'
+
+        // Show current active digit number on Digit 7 (RAM byte index 14)
+        let digit_num = *ctx.local.active_digit;
+        edit_ram[14] = dro08::FONT[digit_num as usize];
+
+        // 3. Set the blink mask bit corresponding to the active digit position
+        // TM1638 digit positions map to RAM bytes (Digit N -> RAM Index N * 2)
+        let active_ram_index = (digit_num * 2) as u16;
+        let mask = 1u16 << active_ram_index;
+
+        // 4. Publish display RAM and active blink mask
+        ctx.shared.tm1638_ram.lock(|ram| *ram = Some(edit_ram));
+        ctx.shared.blink_mask.lock(|m| *m = Some(mask));
+
+        // Re-spawn edit_task periodically (e.g. every 50 ms to handle key UI response)
+        edit_task::spawn_after(1000.millis()).ok();
+    }
 }

@@ -4,6 +4,7 @@ pub mod drivers;
 pub mod protocol;
 
 // --- Re-exports for convenient top-level access ---
+pub use drivers::blink::Blinker;
 pub use drivers::bsp;
 pub use drivers::encoder::Encoder;
 pub use drivers::keyboard::{self, Key, KeyEvent, Keyboard};
@@ -139,10 +140,8 @@ pub fn process_display_ui(
             }
         }
 
-        Some(KeyEvent::Short(Key::Key6)) => {
-            if *menu_select == 0 {
-                action = DisplayAction::ResetEncoder;
-            }
+        Some(KeyEvent::Short(Key::Key6)) if *menu_select == 0 => {
+            action = DisplayAction::ResetEncoder;
         }
 
         _ => {}
