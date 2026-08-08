@@ -79,47 +79,44 @@ impl QuadratureEncoder {
         self.tim.cnt().read().cnt().bits()
     }
 
-    /// Reads the encoder counter directly as a signed 16-bit integer (`i16`).
-    #[inline]
-    pub fn read_i16(&self) -> i16 {
-        self.read_u16() as i16
-    }
-
-    /// Resets both the hardware counter and the 32-bit tracking state back to `0`.
+    /// Resets both the hardware counter and the 32-bit tracking state back to `0`,
+    /// temporarily freezing the timer to eliminate race conditions under high speed.
     #[inline]
     pub fn reset(&mut self) {
-        // Force the hardware back to 0
+        // 1. Disable the hardware timer counter to freeze edge accumulation
+        self.tim.cr1().modify(|_, w| w.cen().clear_bit());
+
+        // 2. Force the hardware counter register to 0
         self.tim.cnt().write(|w| unsafe { w.cnt().bits(0) });
 
-        // Align all internal state so the next delta calculation starts from a clean 0
+        // 3. Align all internal software tracking states to a clean 0
         self.last_raw_count = 0;
         self.accumulated_count = 0;
+
+        // 4. Re-enable the hardware counter to resume tracking
+        self.tim.cr1().modify(|_, w| w.cen().set_bit());
     }
 
     /// Presets the hardware encoder counter to a specific u16 value,
     /// and matches the 32-bit accumulator to it.
+    /// Presets the encoder tracking by temporarily freezing the hardware timer
+    /// to guarantee race-free alignment under high-speed movement.
     #[inline]
-    pub fn preset(&mut self, value: u16) {
-        self.tim.cnt().write(|w| unsafe { w.cnt().bits(value) });
+    pub fn preset(&mut self, value: i32) {
+        // 1. Disable the hardware timer counter to freeze edge accumulation
+        self.tim.cr1().modify(|_, w| w.cen().clear_bit());
 
-        // Align state so the next update starts tracking from this baseline
-        self.last_raw_count = value;
-        self.accumulated_count = value as i32;
+        // 2. Safely force the hardware counter register to 0 while frozen
+        self.tim.cnt().write(|w| unsafe { w.cnt().bits(0) });
+
+        // 3. Align the software tracking structures to the new baseline perfectly
+        self.last_raw_count = 0;
+        self.accumulated_count = value;
+
+        // 4. Re-enable the hardware counter to resume active quadrature tracking
+        self.tim.cr1().modify(|_, w| w.cen().set_bit());
     }
 
-    /// Presets the absolute tracking state to a specific `i32` value,
-    /// automatically aligning the underlying hardware timer to match.
-    #[inline]
-    pub fn preset_i32(&mut self, target_i32: i32) {
-        // Map the i32 down to the raw u16 equivalent for the hardware register
-        let raw_u16 = (target_i32 & 0xFFFF) as u16;
-
-        self.tim.cnt().write(|w| unsafe { w.cnt().bits(raw_u16) });
-
-        // Both trackers are updated together to match the new timeline seamlessly
-        self.last_raw_count = raw_u16;
-        self.accumulated_count = target_i32;
-    }
     /// Reads the direction of counter movement.
     /// Returns `true` if counting down, `false` if counting up.
     #[inline]

@@ -104,7 +104,7 @@ pub struct DisplayState {
 #[derive(Debug, PartialEq, Eq)]
 pub enum DisplayAction {
     None,
-    ApplyPreset { raw_target: i32, preset: i32 },
+    ApplyPreset,
     ResetEncoder,
 }
 
@@ -126,12 +126,10 @@ pub fn process_display_ui(
             *menu_select = 0;
         }
 
-        Some(KeyEvent::Short(Key::Key4)) => {
-            let raw_target = state.scale_factor.unapply(state.preset_count);
-            action = DisplayAction::ApplyPreset {
-                raw_target,
-                preset: state.preset_count,
-            };
+        // CRITICAL FIX: Symmetrically guard Key 4 so it only applies presets
+        // when the readout is on the primary screen (menu_select == 0).
+        Some(KeyEvent::Short(Key::Key4)) if *menu_select == 0 => {
+            action = DisplayAction::ApplyPreset;
         }
 
         Some(KeyEvent::Short(Key::Key5)) => {
@@ -156,7 +154,7 @@ pub fn process_display_ui(
         5 => (state.scale_factor.val as i32, state.scale_factor.dp),
         _ => (
             match action {
-                DisplayAction::ApplyPreset { preset, .. } => preset,
+                DisplayAction::ApplyPreset => state.preset_count,
                 DisplayAction::ResetEncoder => 0,
                 DisplayAction::None => state.scaled_value,
             },
@@ -186,7 +184,6 @@ pub fn process_display_ui(
 
     (ram_buf, action)
 }
-
 // lib.rs
 
 /// Processes pending UART Modbus traffic and handles node address updates.
