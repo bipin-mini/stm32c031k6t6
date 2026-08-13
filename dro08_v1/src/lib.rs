@@ -13,8 +13,6 @@ pub use drivers::tm1638::{self, FONT, Tm1638};
 pub use drivers::uart_dma::UartDma;
 pub use protocol::modbus::{self, DEFAULT_ADDRESS, HoldingRegisters, Modbus};
 
-// ... (keep rest of ScaleRatio and display_i32 as is)
-
 const POW10: [i64; 6] = [1, 10, 100, 1_000, 10_000, 100_000];
 
 #[derive(Clone, Copy)]
@@ -85,10 +83,83 @@ pub fn display_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8) {
     }
 }
 
-/// Input snapshot needed to compute menu transitions and display RAM
-pub struct DisplayState {
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EditContext {
+    pub active_digit: u8,
+    pub active_dp: u8,
+    pub current_value: i32,
+}
+
+impl EditContext {
+    #[inline]
+    pub fn move_cursor(&mut self) {
+        self.active_digit = (self.active_digit + 1) % 7;
+    }
+
+    #[inline]
+    pub fn move_decimal(&mut self) {
+        self.active_dp = (self.active_dp + 1) % 6;
+    }
+
+    #[inline]
+    pub fn increment_digit(&mut self) {
+        if self.active_digit >= 6 {
+            return;
+        }
+
+        let place_weight = POW10[self.active_digit as usize] as i32;
+        let isolated_digit = (self.current_value.abs() / place_weight) % 10;
+        let sign = if self.current_value >= 0 { 1 } else { -1 };
+
+        if isolated_digit == 9 {
+            self.current_value -= sign * 9 * place_weight;
+        } else {
+            self.current_value += sign * place_weight;
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct DisplayContext {
+    pub value: i32,
+    pub decimal_pos: u8,
+    pub param_select: u8,
+    pub rl1_active: bool,
+    pub rl2_active: bool,
+}
+
+impl DisplayContext {
+    pub fn render(&self) -> [u8; 16] {
+        let mut ram_buf = [0u8; 16];
+        display_i32(self.value, &mut ram_buf, self.decimal_pos);
+
+        if (1..=5).contains(&self.param_select) {
+            let led_idx = (2 * (self.param_select + 2) + 1) as usize;
+            if led_idx < ram_buf.len() {
+                ram_buf[led_idx] = 1;
+            }
+        }
+
+        if self.rl1_active {
+            ram_buf[3] = 1;
+        }
+        if self.rl2_active {
+            ram_buf[5] = 1;
+        }
+        ram_buf
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum UiMode {
+    Normal,
+    Edit(EditContext),
+}
+
+pub struct FsmInput {
     pub key_event: Option<KeyEvent>,
-    pub menu_select: u8,
+    pub current_mode: UiMode,
+    pub param_select: u8,
     pub decimal_dp: u8,
     pub preset_count: i32,
     pub scale_factor: ScaleRatio,
@@ -100,96 +171,208 @@ pub struct DisplayState {
     pub rl2_active: bool,
 }
 
-/// Actions required by RTIC task after processing menu input
+pub struct FsmOutput {
+    pub next_mode: UiMode,
+    pub next_param_select: u8,
+    pub next_decimal_dp: u8,
+    pub next_blink_mask: Option<u16>,
+    pub action: DisplayAction,
+    pub ram_buf: [u8; 16],
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum DisplayAction {
     None,
     ApplyPreset,
     ResetEncoder,
+    SaveParam(u8, i32),
+    SaveScale(i32, u8),
 }
 
-/// Helper to update display state, generate RAM buffer, and signal required actions
-pub fn process_display_ui(
-    state: &DisplayState,
-    menu_select: &mut u8,
-    decimal_dp: &mut u8,
-) -> ([u8; 16], DisplayAction) {
+// ============================================================================
+// CORE STATE MACHINE
+// ============================================================================
+pub fn step_system_fsm(input: &FsmInput) -> FsmOutput {
+    let mut next_mode = input.current_mode;
+    let mut next_param_select = input.param_select;
+    let mut next_decimal_dp = input.decimal_dp;
+    let mut next_blink_mask = None;
     let mut action = DisplayAction::None;
 
-    // 1. Process Key Presses & State Transitions
-    match state.key_event {
-        Some(KeyEvent::Short(Key::Key1)) => {
-            *menu_select = (*menu_select + 1) % 6;
-        }
-
-        Some(KeyEvent::Short(Key::Key2)) => {
-            *menu_select = 0;
-        }
-
-        // CRITICAL FIX: Symmetrically guard Key 4 so it only applies presets
-        // when the readout is on the primary screen (menu_select == 0).
-        Some(KeyEvent::Short(Key::Key4)) if *menu_select == 0 => {
-            action = DisplayAction::ApplyPreset;
-        }
-
-        Some(KeyEvent::Short(Key::Key5)) => {
-            if *menu_select == 0 {
-                *decimal_dp = (*decimal_dp + 1) % 6;
-            }
-        }
-
-        Some(KeyEvent::Short(Key::Key6)) if *menu_select == 0 => {
-            action = DisplayAction::ResetEncoder;
-        }
-
-        _ => {}
+    // A. STATE TRANSITIONS AND DATA MUTATION VIA ROUTED HELPERS
+    match input.current_mode {
+        UiMode::Normal => handle_normal_mode(
+            input,
+            &mut next_mode,
+            &mut next_param_select,
+            &mut next_decimal_dp,
+            &mut action,
+        ),
+        UiMode::Edit(edit_ctx) => handle_edit_mode(
+            input,
+            edit_ctx,
+            &mut next_mode,
+            &mut next_param_select,
+            &mut next_decimal_dp,
+            &mut next_blink_mask,
+            &mut action,
+        ),
     }
 
-    // 2. Select Value and Decimal Point to Display
-    let (value, dp) = match *menu_select {
-        1 => (state.preset_count, 0),
-        2 => (state.limit_1, 0),
-        3 => (state.limit_2, 0),
-        4 => (state.relay_time as i32, 0),
-        5 => (state.scale_factor.val as i32, state.scale_factor.dp),
-        _ => (
-            match action {
-                DisplayAction::ApplyPreset => state.preset_count,
-                DisplayAction::ResetEncoder => 0,
-                DisplayAction::None => state.scaled_value,
-            },
-            *decimal_dp,
-        ),
+    // B. DETERMINE VISUAL TARGET VALUES
+    let (display_val, display_dp) = resolve_display_parameters(
+        &next_mode,
+        next_param_select,
+        next_decimal_dp,
+        input,
+        &action,
+    );
+
+    // C. ENCAPSULATED DISPLAY SNAPSHOT & RENDER
+    let display = DisplayContext {
+        value: display_val,
+        decimal_pos: display_dp,
+        param_select: next_param_select,
+        rl1_active: input.rl1_active,
+        rl2_active: input.rl2_active,
     };
 
-    // 3. Render TM1638 RAM Buffer
-    let mut ram_buf = [0u8; 16];
-    display_i32(value, &mut ram_buf, dp);
-
-    // Menu Indicator LEDs
-    if (1..=5).contains(menu_select) {
-        let led_idx = (2 * (*menu_select + 2) + 1) as usize;
-        if led_idx < ram_buf.len() {
-            ram_buf[led_idx] = 1;
-        }
+    FsmOutput {
+        next_mode,
+        next_param_select,
+        next_decimal_dp,
+        next_blink_mask,
+        action,
+        ram_buf: display.render(),
     }
-
-    // Relay Status LEDs
-    if state.rl1_active {
-        ram_buf[3] = 1;
-    }
-    if state.rl2_active {
-        ram_buf[5] = 1;
-    }
-
-    (ram_buf, action)
 }
-// lib.rs
+
+// --- PRIVATE STATE MACHINE MUTATION ACTIONS ---
+
+fn handle_normal_mode(
+    input: &FsmInput,
+    next_mode: &mut UiMode,
+    next_param_select: &mut u8,
+    next_decimal_dp: &mut u8,
+    action: &mut DisplayAction,
+) {
+    match input.key_event {
+        Some(KeyEvent::Short(Key::Key1)) => *next_param_select = (*next_param_select + 1) % 6,
+        Some(KeyEvent::Short(Key::Key2)) => *next_param_select = 0,
+        Some(KeyEvent::Short(Key::Key4)) if *next_param_select == 0 => {
+            *action = DisplayAction::ApplyPreset
+        }
+        Some(KeyEvent::Short(Key::Key5)) if *next_param_select == 0 => {
+            *next_decimal_dp = (*next_decimal_dp + 1) % 6
+        }
+        Some(KeyEvent::Short(Key::Key6)) if *next_param_select == 0 => {
+            *action = DisplayAction::ResetEncoder
+        }
+        Some(KeyEvent::Long(Key::Key3)) if (1..=5).contains(next_param_select) => {
+            let initial_val = match *next_param_select {
+                1 => input.preset_count,
+                2 => input.limit_1,
+                3 => input.limit_2,
+                4 => input.relay_time as i32,
+                5 => input.scale_factor.val as i32,
+                _ => 0,
+            };
+            *next_decimal_dp = input.decimal_dp;
+            *next_mode = UiMode::Edit(EditContext {
+                active_digit: 0,
+                active_dp: input.scale_factor.dp,
+                current_value: initial_val,
+            });
+        }
+        _ => {}
+    }
+}
+
+fn handle_edit_mode(
+    input: &FsmInput,
+    mut edit_ctx: EditContext,
+    next_mode: &mut UiMode,
+    next_param_select: &mut u8,
+    next_decimal_dp: &mut u8,
+    next_blink_mask: &mut Option<u16>,
+    action: &mut DisplayAction,
+) {
+    let blink_bit = 14 - (2 * edit_ctx.active_digit);
+    *next_blink_mask = Some(1u16 << blink_bit);
+    *next_decimal_dp = edit_ctx.active_dp;
+
+    match input.key_event {
+        Some(KeyEvent::Short(Key::Key4)) => {
+            edit_ctx.move_cursor();
+            *next_mode = UiMode::Edit(edit_ctx);
+        }
+        Some(KeyEvent::Short(Key::Key5)) => {
+            if *next_param_select == 5 {
+                edit_ctx.move_decimal();
+                *next_decimal_dp = edit_ctx.active_dp;
+            }
+            *next_mode = UiMode::Edit(edit_ctx);
+        }
+        Some(KeyEvent::Short(Key::Key6)) => {
+            if edit_ctx.active_digit < 6 {
+                edit_ctx.increment_digit();
+            } else {
+                edit_ctx.current_value *= -1;
+            }
+            *next_mode = UiMode::Edit(edit_ctx);
+        }
+        Some(KeyEvent::Short(Key::Key2)) => {
+            *next_decimal_dp = input.decimal_dp;
+            *next_mode = UiMode::Normal;
+        }
+        Some(KeyEvent::Long(Key::Key1)) => {
+            if *next_param_select == 5 {
+                *action = DisplayAction::SaveScale(edit_ctx.current_value, edit_ctx.active_dp);
+            } else {
+                *action = DisplayAction::SaveParam(*next_param_select, edit_ctx.current_value);
+            }
+            *next_decimal_dp = input.decimal_dp;
+            *next_mode = UiMode::Normal;
+        }
+        _ => {}
+    }
+}
+
+fn resolve_display_parameters(
+    next_mode: &UiMode,
+    next_param_select: u8,
+    next_decimal_dp: u8,
+    input: &FsmInput,
+    action: &DisplayAction,
+) -> (i32, u8) {
+    match *next_mode {
+        UiMode::Edit(edit_ctx) => (
+            edit_ctx.current_value,
+            if next_param_select == 5 {
+                edit_ctx.active_dp
+            } else {
+                0
+            },
+        ),
+        UiMode::Normal => match next_param_select {
+            1 => (input.preset_count, 0),
+            2 => (input.limit_1, 0),
+            3 => (input.limit_2, 0),
+            4 => (input.relay_time as i32, 0),
+            5 => (input.scale_factor.val as i32, input.scale_factor.dp),
+            _ => (
+                match action {
+                    DisplayAction::ApplyPreset => input.preset_count,
+                    DisplayAction::ResetEncoder => 0,
+                    _ => input.scaled_value,
+                },
+                next_decimal_dp,
+            ),
+        },
+    }
+}
 
 /// Processes pending UART Modbus traffic and handles node address updates.
-///
-/// Returns `Some(u8)` with the new slave address if a valid change was requested,
-/// or `None` otherwise.
 pub fn process_uart(
     uart: &mut UartDma,
     modbus: &mut Modbus,
