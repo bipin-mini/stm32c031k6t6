@@ -22,16 +22,10 @@ pub struct ScaleRatio {
 }
 
 impl ScaleRatio {
-    pub const fn new(val: u32, dp: u8) -> Self {
+     pub const fn new(val: u32, dp: u8) -> Self {
         Self {
-            val: if val == 0 {
-                1
-            } else if val > 999_999 {
-                999_999
-            } else {
-                val
-            },
-            dp: if dp > 5 { 5 } else { dp },
+            val: if val == 0 { 1 } else { val },
+            dp: dp % 6,
         }
     }
 
@@ -301,9 +295,24 @@ fn handle_edit_mode(
     *next_blink_mask = Some(1u16 << blink_bit);
     *next_decimal_dp = edit_ctx.active_dp;
 
+    let led_idx = (2 * (*next_param_select + 2) + 1) as usize;
+    // Blink parameter select led to edit -ve sign
+    if let Some(mask) = next_blink_mask {
+        if *next_param_select < 4_u8 && edit_ctx.active_digit == 6_u8 {
+            *mask |= 1 << led_idx;
+        } else {
+            *mask &= !(1 << led_idx);
+        }
+    }
+
     match input.key_event {
         Some(KeyEvent::Short(Key::Key4)) => {
             edit_ctx.move_cursor();
+            // Negative sign not applicable to relay_time and scale factor
+            match next_param_select{
+                4..5 => if edit_ctx.active_digit == 6 {edit_ctx.active_digit = 0;},
+                _ => {}
+            }
             *next_mode = UiMode::Edit(edit_ctx);
         }
         Some(KeyEvent::Short(Key::Key5)) => {
@@ -327,6 +336,10 @@ fn handle_edit_mode(
         }
         Some(KeyEvent::Long(Key::Key1)) => {
             if *next_param_select == 5 {
+                if edit_ctx.current_value == 0 {
+                    edit_ctx.current_value = 1;
+                    edit_ctx.active_dp = 0;
+                }
                 *action = DisplayAction::SaveScale(edit_ctx.current_value, edit_ctx.active_dp);
             } else {
                 *action = DisplayAction::SaveParam(*next_param_select, edit_ctx.current_value);
