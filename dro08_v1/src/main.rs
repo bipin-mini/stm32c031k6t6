@@ -59,7 +59,7 @@ mod app {
         bsp::init_clocks(&dp.RCC);
         bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
 
-        let tm1638 = Tm1638::new();
+        let mut tm1638 = Tm1638::new();
         let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
         let modbus = Modbus::new(DEFAULT_ADDRESS);
         let relay = RelayController::new();
@@ -76,6 +76,17 @@ mod app {
         let mono = Systick::new(ctx.core.SYST, bsp::SYSCLK_HZ);
 
         cortex_m::asm::delay(DELAY_2MS); // Wait for TM1638 to power up
+                // All segments & LEDS on
+        let mut ram_data = [0xFFu8; 16];
+        tm1638.write_display(&ram_data);
+        cortex_m::asm::delay(48_000_000);
+
+        // Modbus Address
+        ram_data = [0u8;16];
+        dro08::display_i32(slave_addr as i32, &mut ram_data, 0);
+        dro08::suppress_leading_zeros(&mut ram_data);
+        tm1638.write_display(&ram_data);
+        cortex_m::asm::delay(48_000_000);
 
         let encoder = QuadratureEncoder::new(dp.TIM1);
         bsp::init_interrupts(&dp.EXTI);
