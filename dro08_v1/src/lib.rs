@@ -22,7 +22,7 @@ pub struct ScaleRatio {
 }
 
 impl ScaleRatio {
-     pub const fn new(val: u32, dp: u8) -> Self {
+    pub const fn new(val: u32, dp: u8) -> Self {
         Self {
             val: if val == 0 { 1 } else { val },
             dp: dp % 6,
@@ -35,8 +35,9 @@ impl ScaleRatio {
         let raw = raw_count as i64;
         let num = self.val as i64;
         let den = POW10[self.dp as usize];
-        let val = (raw * num) / den;
-        (val % 1_000_000) as i32
+
+        let scaled = (raw * num) / den;
+        scaled as i32
     }
 
     /// Convert scaled value back to raw encoder count
@@ -53,7 +54,7 @@ impl ScaleRatio {
             (scaled * num - half_den) / den
         };
 
-        (raw % 1_000_000) as i32
+        raw as i32
     }
 }
 
@@ -113,7 +114,7 @@ pub fn suppress_leading_zeros(ram_data: &mut [u8; 16]) {
     // 3. Position the negative sign adjacent to max_active_digit
     if is_negative {
         let sign_digit_idx = max_active_digit + 1;
-        if sign_digit_idx < 6 {
+        if sign_digit_idx < 7 {
             let sign_ram_idx = (7 - sign_digit_idx) * 2;
             ram_data[sign_ram_idx] = 0x40; // '-' segment
         }
@@ -381,8 +382,8 @@ fn handle_edit_mode(
         Some(KeyEvent::Short(Key::Key4)) => {
             edit_ctx.move_cursor();
             // Negative sign not applicable to relay_time and scale factor
-            match next_param_select{
-                            // Relay timer max value 99
+            match next_param_select {
+                // Relay timer max value 99
                 4 => {
                     if edit_ctx.active_digit == 2 {
                         edit_ctx.active_digit = 0;
