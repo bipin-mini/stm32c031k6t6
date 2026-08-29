@@ -29,94 +29,78 @@ impl ScaleRatio {
         }
     }
 
-    /// Apply ratio using 64-bit integer arithmetic
     #[inline(always)]
     pub fn apply(&self, raw_count: i32) -> i32 {
         let raw = raw_count as i64;
         let num = self.val as i64;
-        let den = POW10[self.dp as usize];
-
-        let scaled = (raw * num) / den;
-        scaled as i32
+        let den = POW10[self.dp as usize] as i64;
+        (((raw * num) / den) % 1_000_000) as i32
     }
 
-    /// Convert scaled value back to raw encoder count
     #[inline(always)]
     pub fn unapply(&self, scaled_val: i32) -> i32 {
         let scaled = scaled_val as i64;
-        let num = POW10[self.dp as usize];
+        let num = POW10[self.dp as usize] as i64;
         let den = self.val as i64;
-
         let half_den = den / 2;
+
         let raw = if scaled >= 0 {
             (scaled * num + half_den) / den
         } else {
             (scaled * num - half_den) / den
         };
-
-        raw as i32
+        ((raw) % 1_000_000) as i32
     }
 }
 
-pub fn display_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8) {
+/// Combined display renderer and leading zero suppressor.
+/// Formats standard and menu display modes into the TM1638 RAM buffer in a single pass.
+pub fn render_display_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8, suppress_zeros: bool) {
     let negative = n < 0;
     let mut value = n.unsigned_abs();
 
-    for i in 0..6 {
-        let digit = (value % 10) as usize;
+    let mut digits = [0u8; 6];
+    for d in digits.iter_mut() {
+        *d = (value % 10) as u8;
         value /= 10;
-        ram_data[(7 - i) * 2] = FONT[digit];
     }
 
-    if decimal_pos > 0 && decimal_pos < 6 {
-        ram_data[(7 - decimal_pos as usize) * 2] |= 0x80;
+    // Find highest active digit position
+    let mut highest_active = 0;
+    if suppress_zeros {
+        for i in (1..6).rev() {
+            if digits[i] != 0 || (decimal_pos > 0 && decimal_pos as usize == i) {
+                highest_active = i;
+                break;
+            }
+        }
+    } else {
+        highest_active = 5;
     }
 
-    if negative {
-        ram_data[2] = 0x40;
-    }
-}
-
-/// Suppresses leading zeros and shifts negative sign adjacent to the first active digit/decimal.
-/// Must be applied *after* `display_i32` populates `ram_data`.
-pub fn suppress_leading_zeros(ram_data: &mut [u8; 16]) {
-    // Check if the number was negative (display_i32 puts 0x40 in position index 2 / leftmost digit)
-    let is_negative = ram_data[2] == 0x40;
-    if is_negative {
-        ram_data[2] = 0; // Clear the fixed negative sign
-    }
-
-    // 1. Scan from left to right (digits 5 down to 0) to find the highest active digit index.
-    // RAM indices for digits: Digit 5 -> 4, Digit 4 -> 6, Digit 3 -> 8, Digit 2 -> 10, Digit 1 -> 12, Digit 0 -> 14
-    let mut max_active_digit = 0;
-    for digit_idx in (0..6).rev() {
-        let ram_idx = (7 - digit_idx) * 2;
-        let segment_data = ram_data[ram_idx];
-
-        // An active digit has segment content beyond just '0' (FONT[0]),
-        // OR it contains a decimal point dot (0x80 bit set).
-        let digit_segments = segment_data & !0x80; // strip decimal point bit
-        let has_dp = (segment_data & 0x80) != 0;
-
-        // FONT[0] is 0x3F. If digit is not '0', or it has a decimal point, or it's digit 0 (units place)
-        if (digit_segments != 0x3F && digit_segments != 0) || has_dp || digit_idx == 0 {
-            max_active_digit = digit_idx;
-            break;
+    // Write segment patterns
+    for i in 0..6 {
+        let ram_idx = (7 - i) * 2;
+        if i <= highest_active || !suppress_zeros {
+            let mut seg = FONT[digits[i] as usize];
+            if decimal_pos > 0 && (decimal_pos as usize) == i {
+                seg |= 0x80;
+            }
+            ram_data[ram_idx] = seg;
+        } else {
+            ram_data[ram_idx] = 0;
         }
     }
 
-    // 2. Clear out unused leading zero digits to the left of `max_active_digit`
-    for digit_idx in (max_active_digit + 1)..6 {
-        let ram_idx = (7 - digit_idx) * 2;
-        ram_data[ram_idx] = 0;
-    }
-
-    // 3. Position the negative sign adjacent to max_active_digit
-    if is_negative {
-        let sign_digit_idx = max_active_digit + 1;
-        if sign_digit_idx < 7 {
-            let sign_ram_idx = (7 - sign_digit_idx) * 2;
-            ram_data[sign_ram_idx] = 0x40; // '-' segment
+    // Position negative sign
+    if negative {
+        if suppress_zeros {
+            let sign_digit = highest_active + 1;
+            if sign_digit < 6 {
+                ram_data[(7 - sign_digit) * 2] = 0x40;
+            }
+        } else {
+            ram_data[2] = 0x40;
         }
     }
 }
@@ -145,14 +129,14 @@ impl EditContext {
             return;
         }
 
-        let place_weight = POW10[self.active_digit as usize] as i32;
-        let isolated_digit = (self.current_value.abs() / place_weight) % 10;
+        let place_weight = POW10[self.active_digit as usize];
+        let isolated_digit = (self.current_value.abs() / place_weight as i32) % 10;
         let sign = if self.current_value >= 0 { 1 } else { -1 };
 
         if isolated_digit == 9 {
-            self.current_value -= sign * 9 * place_weight;
+            self.current_value -= sign * 9 * place_weight as i32;
         } else {
-            self.current_value += sign * place_weight;
+            self.current_value += sign * place_weight as i32;
         }
     }
 }
@@ -164,17 +148,30 @@ pub struct DisplayContext {
     pub param_select: u8,
     pub rl1_active: bool,
     pub rl2_active: bool,
+    pub suppress_zeros: bool,
 }
 
 impl DisplayContext {
     pub fn render(&self) -> [u8; 16] {
         let mut ram_buf = [0u8; 16];
-        display_i32(self.value, &mut ram_buf, self.decimal_pos);
+        render_display_i32(
+            self.value,
+            &mut ram_buf,
+            self.decimal_pos,
+            self.suppress_zeros,
+        );
 
         if (1..=5).contains(&self.param_select) {
             let led_idx = (2 * (self.param_select + 2) + 1) as usize;
             if led_idx < ram_buf.len() {
                 ram_buf[led_idx] = 1;
+            }
+
+            if self.param_select == 4 {
+                ram_buf[4] = 0;
+                ram_buf[6] = 0;
+                ram_buf[8] = 0;
+                ram_buf[10] = 0;
             }
         }
 
@@ -184,6 +181,7 @@ impl DisplayContext {
         if self.rl2_active {
             ram_buf[5] = 1;
         }
+
         ram_buf
     }
 }
@@ -231,18 +229,12 @@ pub enum DisplayAction {
 // CORE STATE MACHINE
 // ============================================================================
 pub fn step_system_fsm(input: &FsmInput) -> FsmOutput {
-    // ------------------------------------------------------------------------
-    // 1. Initial FSM State Copy
-    // ------------------------------------------------------------------------
     let mut next_mode = input.current_mode;
     let mut next_param_select = input.param_select;
     let mut next_decimal_dp = input.decimal_dp;
     let mut next_blink_mask = None;
     let mut action = DisplayAction::None;
 
-    // ------------------------------------------------------------------------
-    // 2. Evaluate Transitions & Apply Mode Logic
-    // ------------------------------------------------------------------------
     match input.current_mode {
         UiMode::Normal => {
             handle_normal_mode(
@@ -266,9 +258,6 @@ pub fn step_system_fsm(input: &FsmInput) -> FsmOutput {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 3. Resolve Values & Construct Display Snapshot
-    // ------------------------------------------------------------------------
     let (display_val, display_dp) = resolve_display_parameters(
         &next_mode,
         next_param_select,
@@ -277,33 +266,19 @@ pub fn step_system_fsm(input: &FsmInput) -> FsmOutput {
         &action,
     );
 
+    let is_normal_mode = matches!(next_mode, UiMode::Normal);
+
     let display = DisplayContext {
         value: display_val,
         decimal_pos: display_dp,
         param_select: next_param_select,
         rl1_active: input.rl1_active,
         rl2_active: input.rl2_active,
+        suppress_zeros: is_normal_mode,
     };
 
-    // ------------------------------------------------------------------------
-    // 4. Render Hardware RAM Buffer & Apply Display Overrides
-    // ------------------------------------------------------------------------
-    let mut ram_buf = display.render();
+    let ram_buf = display.render();
 
-    if let UiMode::Normal = next_mode {
-        // Remove leading zeroes and adjust negative sign for standard view
-        suppress_leading_zeros(&mut ram_buf);
-    } else if display.param_select == 4_u8 {
-        // Clear specific segment pairs when editing Parameter 4
-        ram_buf[4] = 0;
-        ram_buf[6] = 0;
-        ram_buf[8] = 0;
-        ram_buf[10] = 0;
-    }
-
-    // ------------------------------------------------------------------------
-    // 5. Package Output State
-    // ------------------------------------------------------------------------
     FsmOutput {
         next_mode,
         next_param_select,
@@ -365,36 +340,22 @@ fn handle_edit_mode(
     action: &mut DisplayAction,
 ) {
     let blink_bit = 14 - (2 * edit_ctx.active_digit);
-    *next_blink_mask = Some(1u16 << blink_bit);
+    let mut mask = 1u16 << blink_bit;
     *next_decimal_dp = edit_ctx.active_dp;
 
     let led_idx = (2 * (*next_param_select + 2) + 1) as usize;
-    // Blink parameter select led to edit -ve sign
-    if let Some(mask) = next_blink_mask {
-        if *next_param_select < 4_u8 && edit_ctx.active_digit == 6_u8 {
-            *mask |= 1 << led_idx;
-        } else {
-            *mask &= !(1 << led_idx);
-        }
+    if *next_param_select < 4 && edit_ctx.active_digit == 6 {
+        mask |= 1 << led_idx;
     }
+
+    *next_blink_mask = Some(mask);
 
     match input.key_event {
         Some(KeyEvent::Short(Key::Key4)) => {
             edit_ctx.move_cursor();
-            // Negative sign not applicable to relay_time and scale factor
             match next_param_select {
-                // Relay timer max value 99
-                4 => {
-                    if edit_ctx.active_digit == 2 {
-                        edit_ctx.active_digit = 0;
-                    }
-                }
-                // No -ve sign in scale factorS
-                5 => {
-                    if edit_ctx.active_digit == 6 {
-                        edit_ctx.active_digit = 0;
-                    }
-                }
+                4 if edit_ctx.active_digit == 2 => edit_ctx.active_digit = 0,
+                5 if edit_ctx.active_digit == 6 => edit_ctx.active_digit = 0,
                 _ => {}
             }
             *next_mode = UiMode::Edit(edit_ctx);
@@ -468,7 +429,6 @@ fn resolve_display_parameters(
         },
     }
 }
-
 /// Processes pending UART Modbus traffic and handles node address updates.
 pub fn process_uart(
     uart: &mut UartDma,

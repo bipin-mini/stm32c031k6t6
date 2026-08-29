@@ -10,10 +10,11 @@ use dro08::{
     DEFAULT_ADDRESS, Modbus, QuadratureEncoder, RelayController, ScaleRatio, Tm1638, UartDma, bsp,
 };
 
+
 use rtic::app;
 use systick_monotonic::*;
 
-const DELAY_2MS: u32 = bsp::SYSCLK_HZ / 500; // 2 MHz delay for TM1638 timing
+//const DELAY_2MS: u32 = bsp::SYSCLK_HZ / 500; // 2 MHz delay for TM1638 timing
 
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
@@ -59,7 +60,7 @@ mod app {
         bsp::init_clocks(&dp.RCC);
         bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
 
-        let tm1638 = Tm1638::new();
+        let mut tm1638 = Tm1638::new();
         let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
         let modbus = Modbus::new(DEFAULT_ADDRESS);
         let relay = RelayController::new();
@@ -75,7 +76,23 @@ mod app {
 
         let mono = Systick::new(ctx.core.SYST, bsp::SYSCLK_HZ);
 
-        cortex_m::asm::delay(DELAY_2MS); // Wait for TM1638 to power up
+
+        // All segments & LEDS on
+        let mut ram_data = [0xFFu8; 16];
+        tm1638.write_display(&ram_data);
+        cortex_m::asm::delay(bsp::SYSCLK_HZ);
+
+        // Modbus Address
+        ram_data = [0u8; 16];
+        dro08::render_display_i32(slave_addr as i32, &mut ram_data, 0, true);
+        tm1638.write_display(&ram_data);
+        cortex_m::asm::delay(bsp::SYSCLK_HZ);
+
+
+        
+        // 5. Ensure the TM1638 internal state updates its display register
+        cortex_m::asm::delay(bsp::SYSCLK_HZ); 
+  
 
         let encoder = QuadratureEncoder::new(dp.TIM1);
         bsp::init_interrupts(&dp.EXTI);
@@ -134,7 +151,7 @@ mod app {
         let exti = unsafe { &*pac::EXTI::ptr() };
         exti.fpr1().write(|w| w.fpif6().set_bit());
         let mut data = [0u8; 16];
-        dro08::display_i32(-123456, &mut data, 3);
+        dro08::render_display_i32(-123456, &mut data, 3,true);
         ctx.shared.tm1638_ram.lock(|r| *r = Some(data));
     }
 
