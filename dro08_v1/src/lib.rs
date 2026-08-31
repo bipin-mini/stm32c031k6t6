@@ -2,6 +2,7 @@
 
 pub mod drivers;
 pub mod protocol;
+pub mod storage;
 
 // --- Re-exports for convenient top-level access ---
 pub use drivers::blink::Blinker;
@@ -11,8 +12,12 @@ pub use drivers::keyboard::{self, Key, KeyEvent, Keyboard};
 pub use drivers::relay::RelayController;
 pub use drivers::tm1638::{self, FONT, Tm1638};
 pub use drivers::uart_dma::UartDma;
-pub use protocol::modbus::{self, DEFAULT_ADDRESS, HoldingRegisters, Modbus};
 
+pub use protocol::modbus::{self, DEFAULT_ADDRESS, HoldingRegisters, Modbus};
+pub use storage::parameters::{POW10, ScaleRatio};
+//pub use storage::eeprom::Eeprom;
+
+/*
 const POW10: [i64; 6] = [1, 10, 100, 1_000, 10_000, 100_000];
 
 #[derive(Clone, Copy)]
@@ -34,7 +39,7 @@ impl ScaleRatio {
         let raw = raw_count as i64;
         let num = self.val as i64;
         let den = POW10[self.dp as usize] as i64;
-        (((raw * num) / den) % 1_000_000) as i32
+        ((raw * num) / den) as i32
     }
 
     #[inline(always)]
@@ -52,10 +57,10 @@ impl ScaleRatio {
         ((raw) % 1_000_000) as i32
     }
 }
-
+*/
 /// Combined display renderer and leading zero suppressor.
 /// Formats standard and menu display modes into the TM1638 RAM buffer in a single pass.
-pub fn render_display_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8, suppress_zeros: bool) {
+pub fn render_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8, suppress_zeros: bool) {
     let negative = n < 0;
     let mut value = n.unsigned_abs();
 
@@ -96,7 +101,7 @@ pub fn render_display_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8, supp
     if negative {
         if suppress_zeros {
             let sign_digit = highest_active + 1;
-            if sign_digit < 6 {
+            if sign_digit <= 6 {
                 ram_data[(7 - sign_digit) * 2] = 0x40;
             }
         } else {
@@ -154,7 +159,7 @@ pub struct DisplayContext {
 impl DisplayContext {
     pub fn render(&self) -> [u8; 16] {
         let mut ram_buf = [0u8; 16];
-        render_display_i32(
+        render_i32(
             self.value,
             &mut ram_buf,
             self.decimal_pos,

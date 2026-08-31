@@ -2,6 +2,7 @@ use stm32c0::stm32c031 as pac;
 
 const TICK_FACTOR: u32 = 500; // For 2 ms execution cadence
 
+#[derive(Default)]
 pub struct RelayController {
     rl1_active: bool,
     rl2_active: bool,
