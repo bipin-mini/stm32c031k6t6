@@ -57,6 +57,7 @@ impl ScaleRatio {
 
 #[derive(Clone, Copy)]
 pub struct Parameters {
+    // To be written on edit
     pub preset_count: i32,
     pub limit_1: i32,
     pub limit_2: i32,
@@ -65,7 +66,7 @@ pub struct Parameters {
     pub decimal_dp: u8,
     pub scale_factor: ScaleRatio,
 
-    // Runtime value - NOT stored in EEPROM
+    // To be written on power fail
     pub scaled_value: i32,
 }
 
@@ -101,6 +102,7 @@ const ADDR_SLAVE_ADDR: u8 = 40;
 const ADDR_DECIMAL_DP: u8 = 48;
 
 const ADDR_SCALE_FACTOR: u8 = 56;
+const ADDR_SCALED_VALUE: u8 = 64;
 
 // -------------------------------------------------------------------------
 // EEPROM initialization marker
@@ -116,11 +118,11 @@ const MAGIC: u32 = 0x5343_414C;
 // Primitive read/write helpers
 // -------------------------------------------------------------------------
 
-fn write_i32(eeprom: &mut Eeprom, addr: u8, value: i32) {
+pub fn write_i32(eeprom: &mut Eeprom, addr: u8, value: i32) {
     eeprom.write(addr, &value.to_le_bytes());
 }
 
-fn read_i32(eeprom: &mut Eeprom, addr: u8) -> i32 {
+pub fn read_i32(eeprom: &mut Eeprom, addr: u8) -> i32 {
     let mut buf = [0u8; 4];
 
     eeprom.read(addr, &mut buf);
@@ -128,11 +130,11 @@ fn read_i32(eeprom: &mut Eeprom, addr: u8) -> i32 {
     i32::from_le_bytes(buf)
 }
 
-fn write_u8(eeprom: &mut Eeprom, addr: u8, value: u8) {
+pub fn write_u8(eeprom: &mut Eeprom, addr: u8, value: u8) {
     eeprom.write_byte(addr, value);
 }
 
-fn read_u8(eeprom: &mut Eeprom, addr: u8) -> u8 {
+pub fn read_u8(eeprom: &mut Eeprom, addr: u8) -> u8 {
     eeprom.read_byte(addr)
 }
 
@@ -216,8 +218,7 @@ pub fn read_parameters(eeprom: &mut Eeprom) -> Parameters {
 
         scale_factor: read_scale_ratio(eeprom, ADDR_SCALE_FACTOR),
 
-        // Runtime value is never read from EEPROM.
-        scaled_value: DEFAULT_SCALED_VALUE,
+        scaled_value: read_i32(eeprom, ADDR_SCALED_VALUE),
     }
 }
 
@@ -234,6 +235,8 @@ pub fn write_parameters(eeprom: &mut Eeprom, params: &Parameters) {
 
     write_i32(eeprom, ADDR_LIMIT_2, params.limit_2);
 
+    write_i32(eeprom, ADDR_SCALED_VALUE, params.limit_2);
+
     write_u8(eeprom, ADDR_RELAY_TIME, params.relay_time);
 
     write_u8(eeprom, ADDR_SLAVE_ADDR, params.slave_addr);
@@ -241,8 +244,6 @@ pub fn write_parameters(eeprom: &mut Eeprom, params: &Parameters) {
     write_u8(eeprom, ADDR_DECIMAL_DP, params.decimal_dp);
 
     write_scale_ratio(eeprom, ADDR_SCALE_FACTOR, &params.scale_factor);
-
-    // scaled_value is intentionally not stored.
 
     // IMPORTANT:
     // Write MAGIC only after all parameters have been written.

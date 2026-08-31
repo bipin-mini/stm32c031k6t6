@@ -6,9 +6,9 @@ use stm32c0::stm32c031 as pac;
 
 use dro08::KeyEvent;
 use dro08::UiMode;
-use dro08::{
-    DEFAULT_ADDRESS, Modbus, QuadratureEncoder, RelayController, ScaleRatio, Tm1638, UartDma, bsp,
-};
+use dro08::parameters::load_parameters;
+use dro08::storage::eeprom::Eeprom;
+use dro08::{Modbus, QuadratureEncoder, RelayController, ScaleRatio, Tm1638, UartDma, bsp};
 
 use rtic::app;
 use systick_monotonic::*;
@@ -17,6 +17,7 @@ use systick_monotonic::*;
 
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
+
     use super::*;
 
     #[monotonic(binds = SysTick, default = true, priority = 1)]
@@ -63,19 +64,22 @@ mod app {
         bsp::init_clocks(&dp.RCC);
         bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
 
+        let mut eeprom = Eeprom::new(dp.I2C1, &dp.RCC);
+        let params = load_parameters(&mut eeprom);
+
         let mut tm1638 = Tm1638::new();
         let uart = UartDma::new(dp.USART1, &dp.DMA, &dp.DMAMUX, &dp.RCC);
-        let modbus = Modbus::new(DEFAULT_ADDRESS);
+        let modbus = Modbus::new(params.slave_addr);
         let relay = RelayController::new();
 
-        let preset_count = -5000;
-        let limit_1 = 100;
-        let limit_2 = 200;
-        let relay_time = 0;
-        let slave_addr = DEFAULT_ADDRESS;
-        let decimal_dp = 0;
-        let scale_factor = ScaleRatio::new(25, 2);
-        let scaled_value = 0;
+        let preset_count = params.preset_count;
+        let limit_1 = params.limit_1;
+        let limit_2 = params.limit_2;
+        let relay_time = params.relay_time;
+        let slave_addr = params.slave_addr;
+        let decimal_dp = params.decimal_dp;
+        let scale_factor = params.scale_factor;
+        let scaled_value = params.scaled_value;
 
         let mono = Systick::new(ctx.core.SYST, bsp::SYSCLK_HZ);
 
@@ -93,7 +97,11 @@ mod app {
         // 5. Ensure the TM1638 internal state updates its display register
         cortex_m::asm::delay(bsp::SYSCLK_HZ);
 
-        let encoder = QuadratureEncoder::new(dp.TIM1);
+        let mut encoder = QuadratureEncoder::new(dp.TIM1);
+
+        // Restore encoder count from the loaded scaled value
+        encoder.preset(scale_factor.unapply(scaled_value));
+
         bsp::init_interrupts(&dp.EXTI);
 
         // Spawn tasks
@@ -131,7 +139,6 @@ mod app {
             init::Monotonics(mono),
         )
     }
-
     #[idle]
     fn idle(_: idle::Context) -> ! {
         loop {
@@ -140,7 +147,7 @@ mod app {
     }
     #[task(
         binds = EXTI4_15,
-        priority = 4,
+        priority = 2,
         shared = [tm1638, relay],
     )]
     fn power_fail_task(mut ctx: power_fail_task::Context) {
@@ -149,7 +156,7 @@ mod app {
 
         // 1. Disable SysTick timer and its interrupts immediately
         // so it stops waking the CPU from WFI sleep.
-        
+
         unsafe {
             core::ptr::write_volatile(0xE000_E010 as *mut u32, 0);
         }
@@ -172,7 +179,6 @@ mod app {
         loop {
             cortex_m::asm::wfi();
         }
-        
     }
 
     #[task(shared = [
@@ -192,7 +198,8 @@ mod app {
         preset_requested
         ],
 
-        local = [encoder])]
+        local = [encoder],
+    priority = 1)]
     fn encoder_task(mut ctx: encoder_task::Context) {
         // Use core::mem::replace inside RTIC resource locks safely
         let reset_req = ctx

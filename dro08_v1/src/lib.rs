@@ -14,8 +14,8 @@ pub use drivers::tm1638::{self, FONT, Tm1638};
 pub use drivers::uart_dma::UartDma;
 
 pub use protocol::modbus::{self, DEFAULT_ADDRESS, HoldingRegisters, Modbus};
-pub use storage::parameters::{POW10, ScaleRatio};
-//pub use storage::eeprom::Eeprom;
+pub use storage::parameters::{POW10, ScaleRatio, read_i32, read_u8, write_i32, write_u8};
+pub use storage::{eeprom, parameters};
 
 /*
 const POW10: [i64; 6] = [1, 10, 100, 1_000, 10_000, 100_000];
