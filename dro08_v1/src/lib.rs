@@ -14,9 +14,7 @@ pub use drivers::tm1638::{self, FONT, Tm1638};
 pub use drivers::uart_dma::UartDma;
 
 pub use protocol::modbus::{self, DEFAULT_ADDRESS, HoldingRegisters, Modbus};
-pub use storage::parameters::{
-    ADDR_SCALED_VALUE, POW10, Parameters, ScaleRatio, read_i32, read_u8, write_i32, write_u8,
-};
+pub use storage::parameters::{POW10, ScaleRatio, read_i32, read_u8, write_i32, write_u8};
 pub use storage::{eeprom, parameters};
 
 /// Combined display renderer and leading zero suppressor.

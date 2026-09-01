@@ -344,6 +344,8 @@ mod app {
                 ctx.shared.reset_requested.lock(|r| *r = true);
             }
             dro08::DisplayAction::SaveScale(new_val, new_dp) => {
+                // 1. Disable global interrupts immediately (sets PRIMASK)
+                cortex_m::interrupt::disable();
                 ctx.shared.params.lock(|p| {
                     p.scale_factor.val = new_val as u32;
                     p.scale_factor.dp = new_dp;
@@ -355,8 +357,13 @@ mod app {
                         );
                     });
                 });
+                // Enable global interrupts immediately (sets PRIMASK)
+                cortex_m::asm::delay(bsp::SYSCLK_HZ / 100);
+                unsafe { cortex_m::interrupt::enable() };
             }
             dro08::DisplayAction::SaveParam(param, val) => {
+                // 1. Disable global interrupts immediately (sets PRIMASK)
+                cortex_m::interrupt::disable();
                 ctx.shared.params.lock(|p| match param {
                     1 => {
                         p.preset_count = val;
@@ -367,16 +374,47 @@ mod app {
                                 val,
                             );
                         });
-                        cortex_m::asm::delay(bsp::SYSCLK_HZ / 100);
                     }
-                    2 => p.limit_1 = val,
-                    3 => p.limit_2 = val,
-                    4 => p.relay_time = val as u8,
+                    2 => {
+                        p.limit_1 = val;
+                        ctx.shared.eeprom.lock(|eeprom| {
+                            dro08::parameters::write_i32(
+                                eeprom,
+                                dro08::parameters::ADDR_LIMIT_1,
+                                val,
+                            );
+                        });
+                    }
+                    3 => {
+                        p.limit_2 = val;
+                        ctx.shared.eeprom.lock(|eeprom| {
+                            dro08::parameters::write_i32(
+                                eeprom,
+                                dro08::parameters::ADDR_LIMIT_2,
+                                val,
+                            );
+                        });
+                    }
+                    4 => {
+                        p.relay_time = val as u8;
+                        ctx.shared.eeprom.lock(|eeprom| {
+                            dro08::parameters::write_u8(
+                                eeprom,
+                                dro08::parameters::ADDR_RELAY_TIME,
+                                val as u8,
+                            );
+                        });
+                    }
                     _ => {}
                 });
+                cortex_m::asm::delay(bsp::SYSCLK_HZ / 100);
+                // Enable global interrupts
+                unsafe { cortex_m::interrupt::enable() };
             }
+
             dro08::DisplayAction::None => {}
         }
+
 
         system_fsm_task::spawn_after(50.millis()).ok();
     }
