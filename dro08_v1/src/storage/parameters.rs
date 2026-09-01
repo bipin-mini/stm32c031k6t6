@@ -93,16 +93,16 @@ pub const DEFAULT_SCALED_VALUE: i32 = 0;
 // Each parameter starts on an 8-byte EEPROM page.
 // -------------------------------------------------------------------------
 
-const ADDR_PRESET_COUNT: u8 = 8;
-const ADDR_LIMIT_1: u8 = 16;
-const ADDR_LIMIT_2: u8 = 24;
+pub const ADDR_PRESET_COUNT: u8 = 8;
+pub const ADDR_LIMIT_1: u8 = 16;
+pub const ADDR_LIMIT_2: u8 = 24;
 
-const ADDR_RELAY_TIME: u8 = 32;
-const ADDR_SLAVE_ADDR: u8 = 40;
-const ADDR_DECIMAL_DP: u8 = 48;
+pub const ADDR_RELAY_TIME: u8 = 32;
+pub const ADDR_SLAVE_ADDR: u8 = 40;
+pub const ADDR_DECIMAL_DP: u8 = 48;
 
-const ADDR_SCALE_FACTOR: u8 = 56;
-const ADDR_SCALED_VALUE: u8 = 64;
+pub const ADDR_SCALE_FACTOR: u8 = 56;
+pub const ADDR_SCALED_VALUE: u8 = 64;
 
 // -------------------------------------------------------------------------
 // EEPROM initialization marker
@@ -142,7 +142,7 @@ pub fn read_u8(eeprom: &mut Eeprom, addr: u8) -> u8 {
 // ScaleRatio read/write
 // -------------------------------------------------------------------------
 
-fn write_scale_ratio(eeprom: &mut Eeprom, addr: u8, ratio: &ScaleRatio) {
+pub fn write_scale_ratio(eeprom: &mut Eeprom, addr: u8, ratio: &ScaleRatio) {
     let mut buf = [0u8; 5];
 
     buf[0..4].copy_from_slice(&ratio.val.to_le_bytes());

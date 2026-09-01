@@ -14,50 +14,11 @@ pub use drivers::tm1638::{self, FONT, Tm1638};
 pub use drivers::uart_dma::UartDma;
 
 pub use protocol::modbus::{self, DEFAULT_ADDRESS, HoldingRegisters, Modbus};
-pub use storage::parameters::{POW10, ScaleRatio, read_i32, read_u8, write_i32, write_u8};
+pub use storage::parameters::{
+    ADDR_SCALED_VALUE, POW10, Parameters, ScaleRatio, read_i32, read_u8, write_i32, write_u8,
+};
 pub use storage::{eeprom, parameters};
 
-/*
-const POW10: [i64; 6] = [1, 10, 100, 1_000, 10_000, 100_000];
-
-#[derive(Clone, Copy)]
-pub struct ScaleRatio {
-    pub val: u32,
-    pub dp: u8,
-}
-
-impl ScaleRatio {
-    pub const fn new(val: u32, dp: u8) -> Self {
-        Self {
-            val: if val == 0 { 1 } else { val },
-            dp: dp % 6,
-        }
-    }
-
-    #[inline(always)]
-    pub fn apply(&self, raw_count: i32) -> i32 {
-        let raw = raw_count as i64;
-        let num = self.val as i64;
-        let den = POW10[self.dp as usize] as i64;
-        ((raw * num) / den) as i32
-    }
-
-    #[inline(always)]
-    pub fn unapply(&self, scaled_val: i32) -> i32 {
-        let scaled = scaled_val as i64;
-        let num = POW10[self.dp as usize] as i64;
-        let den = self.val as i64;
-        let half_den = den / 2;
-
-        let raw = if scaled >= 0 {
-            (scaled * num + half_den) / den
-        } else {
-            (scaled * num - half_den) / den
-        };
-        ((raw) % 1_000_000) as i32
-    }
-}
-*/
 /// Combined display renderer and leading zero suppressor.
 /// Formats standard and menu display modes into the TM1638 RAM buffer in a single pass.
 pub fn render_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8, suppress_zeros: bool) {
