@@ -7,6 +7,7 @@ pub mod storage;
 // --- Re-exports for convenient top-level access ---
 pub use drivers::blink::Blinker;
 pub use drivers::bsp;
+pub use drivers::eeprom::Eeprom;
 pub use drivers::encoder::QuadratureEncoder;
 pub use drivers::keyboard::{self, Key, KeyEvent, Keyboard};
 pub use drivers::relay::RelayController;
@@ -14,8 +15,8 @@ pub use drivers::tm1638::{self, FONT, Tm1638};
 pub use drivers::uart_dma::UartDma;
 
 pub use protocol::modbus::{self, DEFAULT_ADDRESS, HoldingRegisters, Modbus};
+pub use storage::parameters::EepromRequest;
 pub use storage::parameters::{POW10, ScaleRatio, read_i32, read_u8, write_i32, write_u8};
-pub use storage::{eeprom, parameters};
 
 /// Combined display renderer and leading zero suppressor.
 /// Formats standard and menu display modes into the TM1638 RAM buffer in a single pass.
@@ -115,6 +116,14 @@ pub struct DisplayContext {
     pub suppress_zeros: bool,
 }
 
+// TM1638 hardware layout constants for menu parameter LEDs
+const LED_OFFSET_BASE: usize = 2;
+const LED_INDEX_STEP: usize = 2;
+const LED_INDEX_BIAS: usize = 1;
+
+const PARAM_RELAY_TIME: u8 = 4;
+const RAM_INDICES_TO_CLEAR_FOR_RELAY_TIME: [usize; 4] = [4, 6, 8, 10];
+
 impl DisplayContext {
     pub fn render(&self) -> [u8; 16] {
         let mut ram_buf = [0u8; 16];
@@ -126,16 +135,16 @@ impl DisplayContext {
         );
 
         if (1..=5).contains(&self.param_select) {
-            let led_idx = (2 * (self.param_select + 2) + 1) as usize;
+            let led_idx =
+                (LED_INDEX_STEP * (self.param_select as usize + LED_OFFSET_BASE)) + LED_INDEX_BIAS;
             if led_idx < ram_buf.len() {
                 ram_buf[led_idx] = 1;
             }
 
-            if self.param_select == 4 {
-                ram_buf[4] = 0;
-                ram_buf[6] = 0;
-                ram_buf[8] = 0;
-                ram_buf[10] = 0;
+            if self.param_select == PARAM_RELAY_TIME {
+                for &idx in &RAM_INDICES_TO_CLEAR_FOR_RELAY_TIME {
+                    ram_buf[idx] = 0;
+                }
             }
         }
 

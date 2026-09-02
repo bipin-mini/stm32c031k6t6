@@ -220,3 +220,25 @@ fn init_relay_pins(gpiob: &pac::GPIOB) {
         w.bs1().set_bit()
     });
 }
+
+pub fn stop_systick() {
+    unsafe {
+        // Clear the SysTick Control and Status Register to stop the timer
+        core::ptr::write_volatile(0xE000_E010 as *mut u32, 0);
+    }
+}
+
+// In src/bsp.rs
+pub fn handle_power_fail_hardware() {
+    cortex_m::interrupt::disable();
+
+    let exti = unsafe { &*pac::EXTI::ptr() };
+    exti.fpr1().write(|w| w.fpif6().set_bit());
+
+    stop_systick();
+
+    unsafe {
+        let rcc = &(*pac::RCC::ptr());
+        rcc.iopenr().modify(|_, w| w.gpioaen().clear_bit());
+    }
+}

@@ -4,41 +4,39 @@
 use panic_halt as _;
 use stm32c0::stm32c031 as pac;
 
-use dro08::KeyEvent;
-use dro08::UiMode;
-use dro08::parameters::load_parameters;
-use dro08::storage::eeprom::Eeprom;
-use dro08::{Modbus, QuadratureEncoder, RelayController, Tm1638, UartDma, bsp};
+use dro08::storage::parameters::{ADDR_SCALED_VALUE, EepromRequest, Parameters, load_parameters};
+use dro08::{
+    Eeprom, KeyEvent, Modbus, QuadratureEncoder, RelayController, Tm1638, UartDma, UiMode, bsp,
+};
 
 use rtic::app;
 use systick_monotonic::*;
 
-use dro08::parameters::{ADDR_SCALED_VALUE, Parameters};
-
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
-
     use super::*;
 
     #[monotonic(binds = SysTick, default = true, priority = 1)]
     type SysMono = Systick<1000>;
+
+    pub struct ControlState {
+        pub rl1_active: bool,
+        pub rl2_active: bool,
+        pub reset_requested: bool,
+        pub preset_requested: bool,
+    }
 
     #[shared]
     struct Shared {
         eeprom: Eeprom,
         params: Parameters,
         scaled_value: i32,
-
         tm1638_ram: Option<[u8; 16]>,
         key_event: Option<KeyEvent>,
         blink_mask: Option<u16>,
         tm1638: Tm1638,
         relay: RelayController,
-
-        rl1_active: bool,
-        rl2_active: bool,
-        reset_requested: bool,
-        preset_requested: bool,
+        control: ControlState,
     }
 
     #[local]
@@ -69,28 +67,27 @@ mod app {
 
         let mono = Systick::new(ctx.core.SYST, bsp::SYSCLK_HZ);
 
-        // All segments & LEDS on
+        // Turn on all segments and LEDs momentarily for testing
         let mut ram_data = [0xFFu8; 16];
         tm1638.write_display(&ram_data);
         cortex_m::asm::delay(bsp::SYSCLK_HZ);
 
-        // Modbus Address display
+        // Display the configured Modbus address
         ram_data = [0u8; 16];
         dro08::render_i32(params.slave_addr as i32, &mut ram_data, 0, true);
         tm1638.write_display(&ram_data);
         cortex_m::asm::delay(bsp::SYSCLK_HZ);
-
-        cortex_m::asm::delay(bsp::SYSCLK_HZ);
+        
 
         let mut encoder = QuadratureEncoder::new(dp.TIM1);
         encoder.preset(params.scale_factor.unapply(scaled_value));
 
         bsp::init_interrupts(&dp.EXTI);
 
-        encoder_task::spawn().ok();
-        modbus_task::spawn().ok();
-        console_task::spawn().ok();
-        system_fsm_task::spawn().ok();
+        let _ = encoder_task::spawn();
+        let _ = modbus_task::spawn();
+        let _ = console_task::spawn();
+        let _ = system_fsm_task::spawn();
 
         (
             Shared {
@@ -102,10 +99,12 @@ mod app {
                 blink_mask: None,
                 tm1638,
                 relay,
-                rl1_active: false,
-                rl2_active: false,
-                reset_requested: false,
-                preset_requested: false,
+                control: ControlState {
+                    rl1_active: false,
+                    rl2_active: false,
+                    reset_requested: false,
+                    preset_requested: false,
+                },
             },
             Local {
                 uart,
@@ -130,28 +129,15 @@ mod app {
         shared = [tm1638, relay, scaled_value, eeprom],
     )]
     fn power_fail_task(mut ctx: power_fail_task::Context) {
-        // 1. Disable global interrupts immediately (sets PRIMASK)
-        cortex_m::interrupt::disable();
-
-        let exti = unsafe { &*pac::EXTI::ptr() };
-        exti.fpr1().write(|w| w.fpif6().set_bit());
-
-        unsafe {
-            core::ptr::write_volatile(0xE000_E010 as *mut u32, 0);
-        }
-
         ctx.shared.relay.lock(|r| r.reset());
         ctx.shared.tm1638.lock(|t| t.set_display(false, 0));
 
-        unsafe {
-            let rcc = &(*pac::RCC::ptr());
-            rcc.iopenr().modify(|_, w| w.gpioaen().clear_bit());
-        }
+        bsp::handle_power_fail_hardware();
 
         let value = ctx.shared.scaled_value.lock(|s| *s);
 
         ctx.shared.eeprom.lock(|eeprom| {
-            dro08::parameters::write_i32(eeprom, ADDR_SCALED_VALUE, value);
+            dro08::storage::parameters::write_i32(eeprom, ADDR_SCALED_VALUE, value);
         });
 
         loop {
@@ -160,42 +146,107 @@ mod app {
     }
 
     #[task(
-        shared = [params, scaled_value, relay, rl1_active, rl2_active, reset_requested, preset_requested],
+        priority = 1,
+        shared = [eeprom]
+    )]
+    fn eeprom_writer_task(mut ctx: eeprom_writer_task::Context, req: EepromRequest) {
+        ctx.shared.eeprom.lock(|eeprom| match req {
+            EepromRequest::ScaleFactor { val, dp } => {
+                let sf = dro08::storage::parameters::ScaleRatio { val, dp };
+                dro08::storage::parameters::write_scale_ratio(
+                    eeprom,
+                    dro08::storage::parameters::ADDR_SCALE_FACTOR,
+                    &sf,
+                );
+            }
+            EepromRequest::PresetCount(val) => {
+                dro08::storage::parameters::write_i32(
+                    eeprom,
+                    dro08::storage::parameters::ADDR_PRESET_COUNT,
+                    val,
+                );
+            }
+            EepromRequest::Limit1(val) => {
+                dro08::storage::parameters::write_i32(
+                    eeprom,
+                    dro08::storage::parameters::ADDR_LIMIT_1,
+                    val,
+                );
+            }
+            EepromRequest::Limit2(val) => {
+                dro08::storage::parameters::write_i32(
+                    eeprom,
+                    dro08::storage::parameters::ADDR_LIMIT_2,
+                    val,
+                );
+            }
+            EepromRequest::RelayTime(val) => {
+                dro08::storage::parameters::write_u8(
+                    eeprom,
+                    dro08::storage::parameters::ADDR_RELAY_TIME,
+                    val,
+                );
+            }
+            EepromRequest::DecimalDp(val) => {
+                dro08::storage::parameters::write_u8(
+                    eeprom,
+                    dro08::storage::parameters::ADDR_DECIMAL_DP,
+                    val,
+                );
+            }
+            EepromRequest::SlaveAddr(val) => {
+                dro08::storage::parameters::write_u8(
+                    eeprom,
+                    dro08::storage::parameters::ADDR_SLAVE_ADDR,
+                    val,
+                );
+            }
+        });
+    }
+
+    #[task(
+        shared = [params, scaled_value, relay, control],
         local = [encoder],
         priority = 1
     )]
     fn encoder_task(mut ctx: encoder_task::Context) {
         let reset_req = ctx
             .shared
-            .reset_requested
-            .lock(|r| core::mem::replace(r, false));
+            .control
+            .lock(|c| core::mem::replace(&mut c.reset_requested, false));
         if reset_req {
             ctx.local.encoder.reset();
             ctx.shared.relay.lock(|r| r.reset());
         }
 
-        let scale = ctx.shared.params.lock(|p| p.scale_factor);
-        let preset_val = ctx.shared.params.lock(|p| p.preset_count);
-        let l1 = ctx.shared.params.lock(|p| p.limit_1);
-        let l2 = ctx.shared.params.lock(|p| p.limit_2);
-        let t = ctx.shared.params.lock(|p| p.relay_time);
+        let (scale, preset_val, l1, l2, t) = ctx.shared.params.lock(|p| {
+            (
+                p.scale_factor,
+                p.preset_count,
+                p.limit_1,
+                p.limit_2,
+                p.relay_time,
+            )
+        });
 
         let preset_req = ctx
             .shared
-            .preset_requested
-            .lock(|p| core::mem::replace(p, false));
+            .control
+            .lock(|c| core::mem::replace(&mut c.preset_requested, false));
         if preset_req {
+            ctx.local.encoder.reset();
             ctx.local.encoder.preset(scale.unapply(preset_val));
             ctx.shared.relay.lock(|r| r.reset());
         }
 
         let count = ctx.local.encoder.count();
-        let local_scaled = scale.apply(count);
+        let local_scaled = scale.apply(count) % 1_000_000;
 
         ctx.shared.scaled_value.lock(|s| *s = local_scaled);
 
         let mut local_relay = ctx.shared.relay.lock(|r| core::mem::take(r));
         local_relay.update(local_scaled, l1, l2, t);
+
         let rl1_state = local_relay.is_rl1_active();
         let rl2_state = local_relay.is_rl2_active();
 
@@ -204,6 +255,7 @@ mod app {
         } else {
             local_relay.relay1_off();
         }
+
         if rl2_state {
             local_relay.relay2_on();
         } else {
@@ -211,10 +263,12 @@ mod app {
         }
 
         ctx.shared.relay.lock(|r| *r = local_relay);
-        ctx.shared.rl1_active.lock(|r1| *r1 = rl1_state);
-        ctx.shared.rl2_active.lock(|r2| *r2 = rl2_state);
+        ctx.shared.control.lock(|c| {
+            c.rl1_active = rl1_state;
+            c.rl2_active = rl2_state;
+        });
 
-        encoder_task::spawn_after(2.millis()).ok();
+        let _ = encoder_task::spawn_after(2.millis());
     }
 
     #[task(
@@ -233,9 +287,10 @@ mod app {
             current_addr,
         ) {
             ctx.shared.params.lock(|p| p.slave_addr = new_addr);
+            let _ = eeprom_writer_task::spawn(EepromRequest::SlaveAddr(new_addr));
         }
 
-        modbus_task::spawn_after(2.millis()).ok();
+        let _ = modbus_task::spawn_after(2.millis());
     }
 
     #[task(
@@ -274,7 +329,7 @@ mod app {
             *ctx.local.last_rendered_ram = render_ram;
         }
 
-        console_task::spawn_after(10.millis()).ok();
+        let _ = console_task::spawn_after(10.millis());
     }
 
     #[task(
@@ -286,13 +341,14 @@ mod app {
             update_ticks: u8 = 0,
         ],
         shared = [
-            eeprom, params, scaled_value,
-            key_event, tm1638_ram, blink_mask, reset_requested, preset_requested,
-            rl1_active, rl2_active
+            params, scaled_value,
+            key_event, tm1638_ram, blink_mask, control
         ]
     )]
     fn system_fsm_task(mut ctx: system_fsm_task::Context) {
         let p = ctx.shared.params.lock(|p| *p);
+        let (rl1, rl2) = ctx.shared.control.lock(|c| (c.rl1_active, c.rl2_active));
+
         let fsm_input = dro08::FsmInput {
             key_event: ctx.shared.key_event.lock(|k| k.take()),
             current_mode: *ctx.local.ui_mode,
@@ -304,8 +360,8 @@ mod app {
             limit_1: p.limit_1,
             limit_2: p.limit_2,
             relay_time: p.relay_time,
-            rl1_active: ctx.shared.rl1_active.lock(|r1| *r1),
-            rl2_active: ctx.shared.rl2_active.lock(|r2| *r2),
+            rl1_active: rl1,
+            rl2_active: rl2,
         };
 
         let output = dro08::step_system_fsm(&fsm_input);
@@ -313,6 +369,7 @@ mod app {
         if let UiMode::Normal = output.next_mode {
             if output.next_decimal_dp != *ctx.local.decimal_dp {
                 *ctx.local.decimal_dp = output.next_decimal_dp;
+                let _ = eeprom_writer_task::spawn(EepromRequest::DecimalDp(output.next_decimal_dp));
             }
         }
 
@@ -338,84 +395,49 @@ mod app {
 
         match output.action {
             dro08::DisplayAction::ApplyPreset => {
-                ctx.shared.preset_requested.lock(|p| *p = true);
+                ctx.shared.control.lock(|c| c.preset_requested = true);
             }
             dro08::DisplayAction::ResetEncoder => {
-                ctx.shared.reset_requested.lock(|r| *r = true);
+                ctx.shared.control.lock(|c| c.reset_requested = true);
             }
             dro08::DisplayAction::SaveScale(new_val, new_dp) => {
-                // 1. Disable global interrupts immediately (sets PRIMASK)
-                cortex_m::interrupt::disable();
                 ctx.shared.params.lock(|p| {
                     p.scale_factor.val = new_val as u32;
                     p.scale_factor.dp = new_dp;
-                    ctx.shared.eeprom.lock(|eeprom| {
-                        dro08::parameters::write_scale_ratio(
-                            eeprom,
-                            dro08::parameters::ADDR_SCALE_FACTOR,
-                            &p.scale_factor,
-                        );
-                    });
                 });
-                // Enable global interrupts immediately (sets PRIMASK)
-                cortex_m::asm::delay(bsp::SYSCLK_HZ / 100);
-                unsafe { cortex_m::interrupt::enable() };
+                let _ = eeprom_writer_task::spawn(EepromRequest::ScaleFactor {
+                    val: new_val as u32,
+                    dp: new_dp,
+                });
             }
             dro08::DisplayAction::SaveParam(param, val) => {
-                // 1. Disable global interrupts immediately (sets PRIMASK)
-                cortex_m::interrupt::disable();
-                ctx.shared.params.lock(|p| match param {
+                let req = match param {
                     1 => {
-                        p.preset_count = val;
-                        ctx.shared.eeprom.lock(|eeprom| {
-                            dro08::parameters::write_i32(
-                                eeprom,
-                                dro08::parameters::ADDR_PRESET_COUNT,
-                                val,
-                            );
-                        });
+                        ctx.shared.params.lock(|p| p.preset_count = val);
+                        Some(EepromRequest::PresetCount(val))
                     }
                     2 => {
-                        p.limit_1 = val;
-                        ctx.shared.eeprom.lock(|eeprom| {
-                            dro08::parameters::write_i32(
-                                eeprom,
-                                dro08::parameters::ADDR_LIMIT_1,
-                                val,
-                            );
-                        });
+                        ctx.shared.params.lock(|p| p.limit_1 = val);
+                        Some(EepromRequest::Limit1(val))
                     }
                     3 => {
-                        p.limit_2 = val;
-                        ctx.shared.eeprom.lock(|eeprom| {
-                            dro08::parameters::write_i32(
-                                eeprom,
-                                dro08::parameters::ADDR_LIMIT_2,
-                                val,
-                            );
-                        });
+                        ctx.shared.params.lock(|p| p.limit_2 = val);
+                        Some(EepromRequest::Limit2(val))
                     }
                     4 => {
-                        p.relay_time = val as u8;
-                        ctx.shared.eeprom.lock(|eeprom| {
-                            dro08::parameters::write_u8(
-                                eeprom,
-                                dro08::parameters::ADDR_RELAY_TIME,
-                                val as u8,
-                            );
-                        });
+                        ctx.shared.params.lock(|p| p.relay_time = val as u8);
+                        Some(EepromRequest::RelayTime(val as u8))
                     }
-                    _ => {}
-                });
-                cortex_m::asm::delay(bsp::SYSCLK_HZ / 100);
-                // Enable global interrupts
-                unsafe { cortex_m::interrupt::enable() };
-            }
+                    _ => None,
+                };
 
+                if let Some(r) = req {
+                    let _ = eeprom_writer_task::spawn(r);
+                }
+            }
             dro08::DisplayAction::None => {}
         }
 
-
-        system_fsm_task::spawn_after(50.millis()).ok();
+        let _ = system_fsm_task::spawn_after(50.millis());
     }
 }

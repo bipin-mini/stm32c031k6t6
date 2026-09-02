@@ -4,8 +4,8 @@
 //! This module contains application-specific parameters,
 //! EEPROM addresses, defaults and load/save functions.
 
+use crate::drivers::eeprom::Eeprom;
 use crate::protocol::modbus::DEFAULT_ADDRESS;
-use crate::storage::eeprom::Eeprom;
 
 pub const POW10: [i64; 6] = [1, 10, 100, 1_000, 10_000, 100_000];
 
@@ -69,6 +69,18 @@ pub struct Parameters {
     // To be written on power fail
     pub scaled_value: i32,
 }
+
+#[derive(Clone, Copy)]
+pub enum EepromRequest {
+    ScaleFactor { val: u32, dp: u8 },
+    PresetCount(i32),
+    Limit1(i32),
+    Limit2(i32),
+    RelayTime(u8),
+    DecimalDp(u8),
+    SlaveAddr(u8),
+}
+
 
 // -------------------------------------------------------------------------
 // Default values

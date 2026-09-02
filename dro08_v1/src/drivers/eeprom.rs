@@ -1,6 +1,7 @@
 //! ST24C02 EEPROM Driver (Blocking / Polling Mode)
 //! Target: STM32C031K6T6
 
+use core::sync::atomic::{AtomicBool, Ordering};
 use stm32c0::stm32c031 as pac;
 
 const EEPROM_ADDR: u8 = 0x50; // Standard 7-bit base address for 24C02
@@ -9,6 +10,9 @@ const TIMEOUT: u32 = 100_000;
 
 // 100 kHz Standard Mode timing @ 48 MHz I2C kernel clock
 const I2C_TIMING_100KHZ: u32 = 0x2030_3E5D;
+
+// Global atomic flag to signal active EEPROM write operations to the power-fail handler
+static EEPROM_BUSY: AtomicBool = AtomicBool::new(false);
 
 pub struct Eeprom {
     i2c: pac::I2C1,
@@ -37,6 +41,11 @@ impl Eeprom {
         i2c.cr1().modify(|_, w| w.pe().set_bit());
 
         Self { i2c }
+    }
+
+    /// Check if an EEPROM write operation is currently in progress
+    pub fn is_busy() -> bool {
+        EEPROM_BUSY.load(Ordering::Acquire)
     }
 
     /// Read a single byte from the given memory address
@@ -112,8 +121,9 @@ impl Eeprom {
 
     /// Write an arbitrary slice of data, handling page-boundary wraps automatically
     pub fn write(&mut self, mut mem_addr: u8, data: &[u8]) {
-        let mut offset = 0;
+        EEPROM_BUSY.store(true, Ordering::Release);
 
+        let mut offset = 0;
         while offset < data.len() {
             let page_offset = (mem_addr as usize) % PAGE_SIZE;
             let bytes_left_in_page = PAGE_SIZE - page_offset;
@@ -124,6 +134,8 @@ impl Eeprom {
             mem_addr = mem_addr.wrapping_add(chunk_size as u8);
             offset += chunk_size;
         }
+
+        EEPROM_BUSY.store(false, Ordering::Release);
     }
 
     /// Internal helper: Write a single page (up to 8 bytes within one boundary)
