@@ -74,10 +74,9 @@ mod app {
 
         // Display the configured Modbus address
         ram_data = [0u8; 16];
-        dro08::render_i32(params.slave_addr as i32, &mut ram_data, 0, true);
+        dro08::render_slave_address(params.slave_addr, &mut ram_data);
         tm1638.write_display(&ram_data);
         cortex_m::asm::delay(bsp::SYSCLK_HZ);
-        
 
         let mut encoder = QuadratureEncoder::new(dp.TIM1);
         encoder.preset(params.scale_factor.unapply(scaled_value));

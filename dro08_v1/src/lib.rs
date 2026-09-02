@@ -70,6 +70,25 @@ pub fn render_i32(n: i32, ram_data: &mut [u8; 16], decimal_pos: u8, suppress_zer
     }
 }
 
+pub fn render_slave_address(addr: u8, ram_data: &mut [u8; 16]) {
+    render_i32(addr as i32, ram_data, 0, false);
+    ram_data[2] = 0;    //  sign position 0
+    ram_data[4] = 0x77; // 'A'
+    ram_data[6] = 0x5E; // 'd'
+    ram_data[8] = 0x50; // 'r'
+
+    let hundreds = addr / 100;
+    let tens = ((addr / 10) % 10) as u8;
+
+    if hundreds == 0 {
+        ram_data[10] = 0;
+    }
+
+    if tens == 0 {
+        ram_data[12] = 0;
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EditContext {
     pub active_digit: u8,
