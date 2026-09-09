@@ -242,3 +242,32 @@ pub fn handle_power_fail_hardware() {
         rcc.iopenr().modify(|_, w| w.gpioaen().clear_bit());
     }
 }
+// Add this to your bsp.rs file
+
+/// Initializes the Independent Watchdog (IWDG) with an approximate 1-second timeout.
+pub fn init_watchdog() {
+    // Access the register block safely using the static PAC pointer
+    let iwdg = unsafe { &*pac::IWDG::ptr() };
+
+    // 1. Enable register configuration access by writing the safety key
+    iwdg.kr().write(|w| unsafe { w.key().bits(0x5555) });
+
+    // 2. Set Prescaler to /32 (with ~32kHz LSI clock, this creates a 1kHz counter rate)
+    iwdg.pr().write(|w| unsafe { w.pr().bits(0x03) });
+
+    // 3. Set Reload value to 1000 (1000 counts * 1ms = ~1.0 second timeout window)
+    iwdg.rlr().write(|w| unsafe { w.rl().bits(1000) });
+
+    // 4. Reload the counter immediately to latch the value
+    iwdg.kr().write(|w| unsafe { w.key().bits(0xAAAA) });
+
+    // 5. Fire up the watchdog timer hardware
+    iwdg.kr().write(|w| unsafe { w.key().bits(0xCCCC) });
+}
+
+/// Refreshes ("kicks") the watchdog timer counter to prevent a system reset.
+pub fn kick_watchdog() {
+    unsafe {
+        (*pac::IWDG::ptr()).kr().write(|w| w.key().bits(0xAAAA));
+    }
+}

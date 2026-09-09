@@ -53,6 +53,7 @@ mod app {
 
         bsp::init_clocks(&dp.RCC);
         bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
+        bsp::init_watchdog();
 
         let mut eeprom = Eeprom::new(dp.I2C1, &dp.RCC);
         let params = load_parameters(&mut eeprom);
@@ -118,6 +119,8 @@ mod app {
     #[idle]
     fn idle(_: idle::Context) -> ! {
         loop {
+            // Kick the watchdog window here during normal operations
+            bsp::kick_watchdog();
             cortex_m::asm::wfi();
         }
     }
@@ -332,24 +335,57 @@ mod app {
     }
 
     #[task(
-        priority = 1,
-        local = [
-            decimal_dp,
-            param_select: u8 = 0,
-            ui_mode: dro08::UiMode = dro08::UiMode::Normal,
-            update_ticks: u8 = 0,
-        ],
-        shared = [
-            params, scaled_value,
-            key_event, tm1638_ram, blink_mask, control
-        ]
-    )]
+    priority = 1,
+    local = [
+        decimal_dp, 
+        param_select: u8 = 0, 
+        ui_mode: dro08::UiMode = dro08::UiMode::Normal, 
+        update_ticks: u8 = 0,
+        inactivity_ticks: u16 = 0, // <-- 1. Add local tick counter for timeout
+    ],
+    shared = [
+        params, 
+        scaled_value, 
+        key_event, 
+        tm1638_ram, 
+        blink_mask, 
+        control
+    ]
+)]
     fn system_fsm_task(mut ctx: system_fsm_task::Context) {
         let p = ctx.shared.params.lock(|p| *p);
         let (rl1, rl2) = ctx.shared.control.lock(|c| (c.rl1_active, c.rl2_active));
 
+        // Peek or take the key event
+        let captured_key = ctx.shared.key_event.lock(|k| k.take());
+
+        // --- 2. Track Inactivity Timeout ---
+        if let UiMode::Normal = *ctx.local.ui_mode {
+            // Reset counter when not in an editing/menu state
+            *ctx.local.inactivity_ticks = 0;
+        } else {
+            // We are in Edit or Parameter Menu mode
+            if captured_key.is_some() {
+                // A key was pressed! Reset the inactivity timer
+                *ctx.local.inactivity_ticks = 0;
+            } else {
+                // No key pressed, increment ticks (each tick represents 50ms)
+                *ctx.local.inactivity_ticks += 1;
+
+                // 200 ticks * 50ms = 10,000ms (10 seconds)
+                if *ctx.local.inactivity_ticks >= 200 {
+                    *ctx.local.inactivity_ticks = 0;
+                    *ctx.local.ui_mode = dro08::UiMode::Normal;
+                    *ctx.local.param_select = 0;
+                    // Force exit early to skip standard FSM state engine processing
+                    let _ = system_fsm_task::spawn_after(50.millis());
+                    return;
+                }
+            }
+        }
+
         let fsm_input = dro08::FsmInput {
-            key_event: ctx.shared.key_event.lock(|k| k.take()),
+            key_event: captured_key, // <-- Pass the captured key event
             current_mode: *ctx.local.ui_mode,
             param_select: *ctx.local.param_select,
             decimal_dp: *ctx.local.decimal_dp,
@@ -374,7 +410,6 @@ mod app {
 
         *ctx.local.ui_mode = output.next_mode;
         *ctx.local.param_select = output.next_param_select;
-
         ctx.shared.blink_mask.lock(|m| *m = output.next_blink_mask);
 
         if *ctx.local.param_select == 0 {
@@ -429,7 +464,6 @@ mod app {
                     }
                     _ => None,
                 };
-
                 if let Some(r) = req {
                     let _ = eeprom_writer_task::spawn(r);
                 }
