@@ -53,7 +53,6 @@ mod app {
 
         bsp::init_clocks(&dp.RCC);
         bsp::init_pins(&dp.GPIOA, &dp.GPIOB, &dp.EXTI);
-        bsp::init_watchdog();
 
         let mut eeprom = Eeprom::new(dp.I2C1, &dp.RCC);
         let params = load_parameters(&mut eeprom);
@@ -83,6 +82,7 @@ mod app {
         encoder.preset(params.scale_factor.unapply(scaled_value));
 
         bsp::init_interrupts(&dp.EXTI);
+        bsp::init_watchdog(); // 1 sec watchdog
 
         let _ = encoder_task::spawn();
         let _ = modbus_task::spawn();
@@ -337,18 +337,18 @@ mod app {
     #[task(
     priority = 1,
     local = [
-        decimal_dp, 
-        param_select: u8 = 0, 
-        ui_mode: dro08::UiMode = dro08::UiMode::Normal, 
+        decimal_dp,
+        param_select: u8 = 0,
+        ui_mode: dro08::UiMode = dro08::UiMode::Normal,
         update_ticks: u8 = 0,
         inactivity_ticks: u16 = 0, // <-- 1. Add local tick counter for timeout
     ],
     shared = [
-        params, 
-        scaled_value, 
-        key_event, 
-        tm1638_ram, 
-        blink_mask, 
+        params,
+        scaled_value,
+        key_event,
+        tm1638_ram,
+        blink_mask,
         control
     ]
 )]
@@ -366,20 +366,14 @@ mod app {
         } else {
             // We are in Edit or Parameter Menu mode
             if captured_key.is_some() {
-                // A key was pressed! Reset the inactivity timer
                 *ctx.local.inactivity_ticks = 0;
             } else {
-                // No key pressed, increment ticks (each tick represents 50ms)
-                *ctx.local.inactivity_ticks += 1;
+                *ctx.local.inactivity_ticks = ctx.local.inactivity_ticks.saturating_add(1);
 
-                // 200 ticks * 50ms = 10,000ms (10 seconds)
                 if *ctx.local.inactivity_ticks >= 200 {
                     *ctx.local.inactivity_ticks = 0;
-                    *ctx.local.ui_mode = dro08::UiMode::Normal;
+                    *ctx.local.ui_mode = UiMode::Normal;
                     *ctx.local.param_select = 0;
-                    // Force exit early to skip standard FSM state engine processing
-                    let _ = system_fsm_task::spawn_after(50.millis());
-                    return;
                 }
             }
         }
