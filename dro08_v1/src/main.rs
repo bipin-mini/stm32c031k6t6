@@ -12,6 +12,8 @@ use dro08::{
 use rtic::app;
 use systick_monotonic::*;
 
+const INACTIVITY_TIMEOUT:u8 = 200; // 10 seconds sammpled every 50ms
+
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
     use super::*;
@@ -120,7 +122,6 @@ mod app {
     fn idle(_: idle::Context) -> ! {
         loop {
             // Kick the watchdog window here during normal operations
-            bsp::kick_watchdog();
             cortex_m::asm::wfi();
         }
     }
@@ -341,7 +342,7 @@ mod app {
         param_select: u8 = 0,
         ui_mode: dro08::UiMode = dro08::UiMode::Normal,
         update_ticks: u8 = 0,
-        inactivity_ticks: u16 = 0, // <-- 1. Add local tick counter for timeout
+        inactivity_ticks: u8 = 0, // <-- 1. Add local tick counter for timeout
     ],
     shared = [
         params,
@@ -370,7 +371,7 @@ mod app {
             } else {
                 *ctx.local.inactivity_ticks = ctx.local.inactivity_ticks.saturating_add(1);
 
-                if *ctx.local.inactivity_ticks >= 200 {
+                if *ctx.local.inactivity_ticks >= INACTIVITY_TIMEOUT {
                     *ctx.local.inactivity_ticks = 0;
                     *ctx.local.ui_mode = UiMode::Normal;
                     *ctx.local.param_select = 0;
@@ -464,6 +465,8 @@ mod app {
             }
             dro08::DisplayAction::None => {}
         }
+
+        bsp::kick_watchdog();
 
         let _ = system_fsm_task::spawn_after(50.millis());
     }
