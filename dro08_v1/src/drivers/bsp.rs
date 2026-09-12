@@ -249,23 +249,22 @@ pub fn handle_power_fail_hardware() {
 pub fn init_watchdog() {
     let iwdg = unsafe { &*pac::IWDG::ptr() };
 
-    // Start the IWDG.
-    iwdg.kr().write(|w| unsafe { w.key().bits(0xCCCC) });
-
     // Enable write access to PR and RLR.
     iwdg.kr().write(|w| unsafe { w.key().bits(0x5555) });
 
-    // LSI / 32 ≈ 1 kHz.
+    // LSI / 32 ≈ 1 kHz nominally.
     iwdg.pr().write(|w| unsafe { w.pr().bits(3) });
 
-    // Approximately 1 second:
-    // (1000 + 1) / 1000 ≈ 1.001 s
+    // Approximately 1 second at nominal 32 kHz LSI.
     iwdg.rlr().write(|w| unsafe { w.rl().bits(1000) });
 
-    // Wait for the register updates to complete.
+    // Wait until prescaler and reload updates are complete.
     while iwdg.sr().read().pvu().bit_is_set() || iwdg.sr().read().rvu().bit_is_set() {
         core::hint::spin_loop();
     }
+
+    // Start the watchdog.
+    iwdg.kr().write(|w| unsafe { w.key().bits(0xCCCC) });
 
     // Load the configured reload value.
     iwdg.kr().write(|w| unsafe { w.key().bits(0xAAAA) });

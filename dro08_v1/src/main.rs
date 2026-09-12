@@ -12,7 +12,7 @@ use dro08::{
 use rtic::app;
 use systick_monotonic::*;
 
-const INACTIVITY_TIMEOUT:u8 = 200; // 10 seconds sammpled every 50ms
+const INACTIVITY_TIMEOUT: u8 = 200; // 10 seconds sammpled every 50ms
 
 #[app(device = pac, peripherals = true, dispatchers = [RTC, SPI, ADC])]
 mod app {
@@ -84,7 +84,7 @@ mod app {
         encoder.preset(params.scale_factor.unapply(scaled_value));
 
         bsp::init_interrupts(&dp.EXTI);
-        bsp::init_watchdog(); // 1 sec watchdog
+        //bsp::init_watchdog(); // 1 sec watchdog
 
         let _ = encoder_task::spawn();
         let _ = modbus_task::spawn();
@@ -143,7 +143,7 @@ mod app {
             dro08::storage::parameters::write_i32(eeprom, ADDR_SCALED_VALUE, value);
         });
 
-        loop {
+        loop{
             cortex_m::asm::wfi();
         }
     }
@@ -358,27 +358,20 @@ mod app {
         let (rl1, rl2) = ctx.shared.control.lock(|c| (c.rl1_active, c.rl2_active));
 
         // Peek or take the key event
+
         let captured_key = ctx.shared.key_event.lock(|k| k.take());
 
-        // --- 2. Track Inactivity Timeout ---
-        if let UiMode::Normal = *ctx.local.ui_mode {
-            // Reset counter when not in an editing/menu state
+        if captured_key.is_some() {
             *ctx.local.inactivity_ticks = 0;
         } else {
-            // We are in Edit or Parameter Menu mode
-            if captured_key.is_some() {
-                *ctx.local.inactivity_ticks = 0;
-            } else {
-                *ctx.local.inactivity_ticks = ctx.local.inactivity_ticks.saturating_add(1);
-
-                if *ctx.local.inactivity_ticks >= INACTIVITY_TIMEOUT {
-                    *ctx.local.inactivity_ticks = 0;
-                    *ctx.local.ui_mode = UiMode::Normal;
-                    *ctx.local.param_select = 0;
-                }
-            }
+            *ctx.local.inactivity_ticks = ctx.local.inactivity_ticks.saturating_add(1);
         }
 
+        if *ctx.local.inactivity_ticks >= INACTIVITY_TIMEOUT {
+            *ctx.local.inactivity_ticks = 0;
+            *ctx.local.ui_mode = UiMode::Normal;
+            *ctx.local.param_select = 0;
+        }
         let fsm_input = dro08::FsmInput {
             key_event: captured_key, // <-- Pass the captured key event
             current_mode: *ctx.local.ui_mode,
@@ -466,7 +459,7 @@ mod app {
             dro08::DisplayAction::None => {}
         }
 
-        bsp::kick_watchdog();
+        //bsp::kick_watchdog();
 
         let _ = system_fsm_task::spawn_after(50.millis());
     }
