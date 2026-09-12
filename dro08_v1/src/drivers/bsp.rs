@@ -242,10 +242,10 @@ pub fn handle_power_fail_hardware() {
         rcc.iopenr().modify(|_, w| w.gpioaen().clear_bit());
     }
 }
-// Add this to your bsp.rs file
 
-/// Initializes the Independent Watchdog (IWDG)
-/// for approximately a 1-second timeout.
+
+
+/*
 pub fn init_watchdog() {
     let iwdg = unsafe { &*pac::IWDG::ptr() };
 
@@ -277,3 +277,4 @@ pub fn kick_watchdog() {
 
     iwdg.kr().write(|w| unsafe { w.key().bits(0xAAAA) });
 }
+*/

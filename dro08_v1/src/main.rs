@@ -1,3 +1,9 @@
+/* 
+************ IMPORTANT **************************
+For correct power fail operation IWDG not required
+BOR to be set to 2.9 Volt settings in option bytes
+**************************************************
+ */
 #![no_std]
 #![no_main]
 
@@ -84,7 +90,7 @@ mod app {
         encoder.preset(params.scale_factor.unapply(scaled_value));
 
         bsp::init_interrupts(&dp.EXTI);
-        //bsp::init_watchdog(); // 1 sec watchdog
+
 
         let _ = encoder_task::spawn();
         let _ = modbus_task::spawn();
@@ -458,8 +464,6 @@ mod app {
             }
             dro08::DisplayAction::None => {}
         }
-
-        //bsp::kick_watchdog();
 
         let _ = system_fsm_task::spawn_after(50.millis());
     }
