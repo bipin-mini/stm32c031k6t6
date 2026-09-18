@@ -1,0 +1,12 @@
+[package]
+name = "tm1638_system"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "tm1638_system"
+path = "src/lib.rs"
+
+[dependencies]
+cortex-m = "0.7"
+stm32c0 = { version = "0.16.0", features = ["stm32c031"] }

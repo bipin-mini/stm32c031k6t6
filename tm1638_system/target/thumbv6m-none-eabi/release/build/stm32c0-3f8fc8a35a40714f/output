@@ -1,0 +1,3 @@
+cargo:rustc-link-search=/home/bipin/Desktop/stm32c031k6t6/tm1638_system/target/thumbv6m-none-eabi/release/build/stm32c0-3f8fc8a35a40714f/out
+cargo:rerun-if-changed=src/stm32c031/device.x
+cargo:rerun-if-changed=build.rs

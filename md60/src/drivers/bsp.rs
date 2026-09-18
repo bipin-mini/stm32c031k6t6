@@ -2,18 +2,19 @@ use stm32c0::stm32c031 as pac;
 
 pub const SYSCLK_HZ: u32 = 48_000_000;
 
+
 mod config {
     /// Flash latency required for 48 MHz operation.
     pub const FLASH_LATENCY_48MHZ: u8 = 1;
 
     /// USART1 alternate function.
-    pub const USART_AF: u8 = 1;
+    pub const _USART_AF: u8 = 1;
 
     /// I2C1 alternate function.
-    pub const I2C_AF: u8 = 6;
+    pub const _I2C_AF: u8 = 6;
 
     /// Power-fail EXTI mask (EXTI6).
-    pub const POWER_FAIL_EXTI_MASK: u32 = 1 << 6;
+    pub const _POWER_FAIL_EXTI_MASK: u32 = 1 << 6;
 }
 
 /// Configure system clocks.
@@ -46,6 +47,7 @@ pub fn init_clocks(rcc: &pac::RCC) {
     cortex_m::asm::dsb();
 }
 
+/*
 /// Configure board GPIO and EXTI modes (Interrupts remain masked).
 pub fn init_pins(gpioa: &pac::GPIOA, gpiob: &pac::GPIOB, exti: &pac::EXTI) {
     init_usart1_pins(gpioa);
@@ -243,9 +245,6 @@ pub fn handle_power_fail_hardware() {
     }
 }
 
-
-
-
 pub fn init_watchdog() {
     let iwdg = unsafe { &*pac::IWDG::ptr() };
 
@@ -277,3 +276,4 @@ pub fn kick_watchdog() {
 
     iwdg.kr().write(|w| unsafe { w.key().bits(0xAAAA) });
 }
+*/
